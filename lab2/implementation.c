@@ -4,16 +4,39 @@
 #include "utilities.h"  // DO NOT REMOVE this line
 #include "implementation_reference.h"   // DO NOT REMOVE this line
 
-/***********************************************************************************************************************
- * @param buffer_frame - pointer pointing to a buffer storing the imported 24-bit bitmap image
+unsigned char *processMoveUp(unsigned char *buffer_frame, unsigned width, 
+    unsigned height, int offset);
+
+unsigned char *processMoveRight(unsigned char *buffer_frame, unsigned width, unsigned height, int offset);
+
+unsigned char *processMoveDown(unsigned char *buffer_frame, unsigned width, unsigned height, int offset);
+
+unsigned char *processMoveLeft(unsigned char *buffer_frame, unsigned width, unsigned height, int offset);
+
+unsigned char *processRotateCW(unsigned char *buffer_frame, unsigned width, unsigned height,
+                               int rotate_iteration);
+
+unsigned char *processRotateCCW(unsigned char *buffer_frame, unsigned width, unsigned height,
+                                int rotate_iteration);
+
+unsigned char *processMirrorX(unsigned char *buffer_frame, unsigned int width, unsigned int height, int _unused);
+
+unsigned char *processMirrorY(unsigned char *buffer_frame, unsigned width, unsigned height, int _unused);
+
+/*******************************************************************************
+ * @param buffer_frame - pointer pointing to a buffer storing the imported 
+ *     24-bit bitmap image
  * @param width - width of the imported 24-bit bitmap image
  * @param height - height of the imported 24-bit bitmap image
  * @param offset - number of pixels to shift the object in bitmap image up
  * @return - pointer pointing a buffer storing a modified 24-bit bitmap image
- * Note1: White pixels RGB(255,255,255) are treated as background. Object in the image refers to non-white pixels.
+ * Note1: White pixels RGB(255,255,255) are treated as background. Object in the
+ *     image refers to non-white pixels.
  * Note2: You can assume the object will never be moved off the screen
- **********************************************************************************************************************/
-unsigned char *processMoveUp(unsigned char *buffer_frame, unsigned width, unsigned height, int offset) {
+ ******************************************************************************/
+unsigned char *processMoveUp(unsigned char *buffer_frame, unsigned width, 
+    unsigned height, int offset) {
+
     // handle negative offsets
     if (offset < 0){
         return processMoveDown(buffer_frame, width, height, offset * -1);
