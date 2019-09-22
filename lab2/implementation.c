@@ -221,20 +221,30 @@ unsigned char *processRotateCW(unsigned char *buffer_frame, unsigned width, unsi
     // allocate memory for temporary image buffer
     unsigned char *rendered_frame = allocateFrame(width, height);
 
+    int widthBytes = 3 * width;
+
     // store shifted pixels to temporary buffer
-    for (int iteration = 0; iteration < rotate_iteration; iteration++) {
-        int render_column = width - 1;
-        int render_row = 0;
-        for (int row = 0; row < width; row++) {
-            for (int column = 0; column < height; column++) {
-                int position_frame_buffer = row * width * 3 + column * 3;
-                rendered_frame[render_row * width * 3 + render_column * 3] = buffer_frame[position_frame_buffer];
-                rendered_frame[render_row * width * 3 + render_column * 3 + 1] = buffer_frame[position_frame_buffer + 1];
-                rendered_frame[render_row * width * 3 + render_column * 3 + 2] = buffer_frame[position_frame_buffer + 2];
-                render_row += 1;
+    for (int iteration = 0; iteration < rotate_iteration; iteration++)
+    {
+        int columnByte = widthBytes - 3;
+
+        for (int row = 0; row < width; row++)
+        {
+            int rowBytes = row * widthBytes;
+            int rowByteOffset = columnByte;
+
+            for (int column = 0; column < height; column++)
+            {
+                int position_frame_buffer = rowBytes + column * 3;
+
+                rendered_frame[rowByteOffset] = buffer_frame[position_frame_buffer];
+                rendered_frame[rowByteOffset + 1] = buffer_frame[position_frame_buffer + 1];
+                rendered_frame[rowByteOffset + 2] = buffer_frame[position_frame_buffer + 2];
+
+                rowByteOffset += widthBytes;
             }
-            render_row = 0;
-            render_column -= 1;
+
+            columnByte -= 3;
         }
 
         // copy the temporary buffer back to original frame buffer
@@ -370,7 +380,7 @@ void implementation_driver(struct kv *sensor_values, int sensor_values_count, un
         } 
         else if (!strcmp(sensor_values[sensorValueIdx].key, "S"))
         {
-            if (value > 0)
+            if (value > 0)  
                 frame_buffer = processMoveDown(frame_buffer, width, height, value);
             else
                 frame_buffer = processMoveUp(frame_buffer, width, height, -1 * value);
