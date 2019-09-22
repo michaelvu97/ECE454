@@ -38,6 +38,7 @@ unsigned char *processMoveUp(unsigned char *buffer_frame, unsigned width,
     unsigned height, int offset) {
 
     int offsetBytes = offset * 3;
+    int offsetTotalBytes = offsetBytes * width;
 
     // Write from left to right, top to bottom
     for (int row = 0; row < height - offset; ++row)
@@ -46,7 +47,7 @@ unsigned char *processMoveUp(unsigned char *buffer_frame, unsigned width,
         for (int column = 0; column < width; ++column)
         {
             int dest = 3 * (rowPixel + column);
-            int source = dest + (offsetBytes * width);
+            int source = dest + offsetTotalBytes;
             buffer_frame[dest] = buffer_frame[source];
             buffer_frame[dest + 1] = buffer_frame[source + 1];
             buffer_frame[dest + 2] = buffer_frame[source + 2];
@@ -126,6 +127,7 @@ unsigned char *processMoveRight(unsigned char *buffer_frame, unsigned width, uns
 unsigned char *processMoveDown(unsigned char *buffer_frame, unsigned width, unsigned height, int offset) {
 
     int offsetBytes = offset * 3;
+    int offsetTotalBytes = offsetBytes * width;
 
     // Write from right to left, bottom to top.
     for (int row = height - 1; row >= offset; --row)
@@ -134,7 +136,7 @@ unsigned char *processMoveDown(unsigned char *buffer_frame, unsigned width, unsi
         for (int column = width - 1; column >= 0; --column)
         {
             int dest = 3 * (rowPixel + column);
-            int source = dest - (offsetBytes * width);
+            int source = dest - offsetTotalBytes;
             buffer_frame[dest] = buffer_frame[source];
             buffer_frame[dest + 1] = buffer_frame[source + 1];
             buffer_frame[dest + 2] = buffer_frame[source + 2];
@@ -382,7 +384,7 @@ void implementation_driver(struct kv *sensor_values, int sensor_values_count, un
         {
             if (value > 0)  
                 frame_buffer = processMoveDown(frame_buffer, width, height, value);
-            else
+            else if (value < 0)
                 frame_buffer = processMoveUp(frame_buffer, width, height, -1 * value);
         } 
         else if (!strcmp(sensor_values[sensorValueIdx].key, "D"))
