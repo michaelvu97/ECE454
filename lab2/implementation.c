@@ -37,13 +37,16 @@ unsigned char *processMirrorY(unsigned char *buffer_frame, unsigned width, unsig
 unsigned char *processMoveUp(unsigned char *buffer_frame, unsigned width, 
     unsigned height, int offset) {
 
+    int offsetBytes = offset * 3;
+
     // Write from left to right, top to bottom
     for (int row = 0; row < height - offset; ++row)
     {
+        int rowPixel = row * height;
         for (int column = 0; column < width; ++column)
         {
-            int dest = 3 * (row * height + column);
-            int source = dest + (3 * offset * width);
+            int dest = 3 * (rowPixel + column);
+            int source = dest + (offsetBytes * width);
             buffer_frame[dest] = buffer_frame[source];
             buffer_frame[dest + 1] = buffer_frame[source + 1];
             buffer_frame[dest + 2] = buffer_frame[source + 2];
@@ -53,10 +56,10 @@ unsigned char *processMoveUp(unsigned char *buffer_frame, unsigned width,
     // Fill in white pixels
     for (int row = height - offset; row < height; ++row)
     {
-        int row_pixel = row * width;
+        int rowPixel = row * width;
         for (int column = 0; column < width; ++column)
         {
-            int base_byte = 3 * (row_pixel + column);
+            int base_byte = 3 * (rowPixel + column);
             buffer_frame[base_byte] = 0xff;
             buffer_frame[base_byte + 1] = 0xff;
             buffer_frame[base_byte + 2] = 0xff;
@@ -77,13 +80,17 @@ unsigned char *processMoveUp(unsigned char *buffer_frame, unsigned width,
  * Note2: You can assume the object will never be moved off the screen
  **********************************************************************************************************************/
 unsigned char *processMoveRight(unsigned char *buffer_frame, unsigned width, unsigned height, int offset) {
+    
+    int offsetBytes = offset * 3;
+
     // Write from right to left, bottom to top
     for (int row = height - 1; row >= 0; --row) 
     {
+        int rowPixel = row * height;
         for (int column = width - 1 - offset; column >= 0; --column)
         {
-            int source = 3 * ((row * width) + column);
-            int target = source + (offset * 3);
+            int source = 3 * (rowPixel + column);
+            int target = source + offsetBytes;
             buffer_frame[target] = buffer_frame[source];
             buffer_frame[target + 1] = buffer_frame[source + 1];
             buffer_frame[target + 2] = buffer_frame[source + 2];
@@ -93,10 +100,10 @@ unsigned char *processMoveRight(unsigned char *buffer_frame, unsigned width, uns
     // Fill in white pixels
     for (int row = 0; row < height; ++row)
     {
-        int row_pixel = row * width;
+        int rowPixel = row * width;
         for (int column = 0; column < offset; ++column)
         {
-            int base = 3 * (row_pixel + column);
+            int base = 3 * (rowPixel + column);
             buffer_frame[base] = 0xff;      
             buffer_frame[base + 1] = 0xff;
             buffer_frame[base + 2] = 0xff;
@@ -118,13 +125,16 @@ unsigned char *processMoveRight(unsigned char *buffer_frame, unsigned width, uns
  **********************************************************************************************************************/
 unsigned char *processMoveDown(unsigned char *buffer_frame, unsigned width, unsigned height, int offset) {
 
+    int offsetBytes = offset * 3;
+
     // Write from right to left, bottom to top.
     for (int row = height - 1; row >= offset; --row)
     {
+        int rowPixel = row * height;
         for (int column = width - 1; column >= 0; --column)
         {
-            int dest = 3 * (row * width + column);
-            int source = dest - (offset * width * 3);
+            int dest = 3 * (rowPixel + column);
+            int source = dest - (offsetBytes * width);
             buffer_frame[dest] = buffer_frame[source];
             buffer_frame[dest + 1] = buffer_frame[source + 1];
             buffer_frame[dest + 2] = buffer_frame[source + 2];
@@ -134,10 +144,10 @@ unsigned char *processMoveDown(unsigned char *buffer_frame, unsigned width, unsi
     // Fill in white pixels
     for (int row = 0; row < offset; ++row)
     {
-        int row_pixel = row * width;
+        int rowPixel = row * width;
         for (int column = 0; column < width; ++column)
         {
-            int base_byte = 3 * (column + row_pixel);
+            int base_byte = 3 * (column + rowPixel);
             buffer_frame[base_byte] = 0xff;
             buffer_frame[base_byte + 1] = 0xff;
             buffer_frame[base_byte + 2] = 0xff;
@@ -158,13 +168,17 @@ unsigned char *processMoveDown(unsigned char *buffer_frame, unsigned width, unsi
  * Note2: You can assume the object will never be moved off the screen
  **********************************************************************************************************************/
 unsigned char *processMoveLeft(unsigned char *buffer_frame, unsigned width, unsigned height, int offset) {
+
+    int offsetBytes = offset * 3;
+
     // Write from left to right, top to bottom
     for (int row = 0; row < height; ++row)
     {
+        int rowPixel = row * height;
         for (int column = 0; column < width - offset; ++column) 
         {
-            int dest = 3 * (row * width + column);
-            int source = dest + (3 * offset);
+            int dest = 3 * (rowPixel + column);
+            int source = dest + offsetBytes;
             buffer_frame[dest] = buffer_frame[source];
             buffer_frame[dest + 1] = buffer_frame[source + 1];
             buffer_frame[dest + 2] = buffer_frame[source + 2];
@@ -174,10 +188,10 @@ unsigned char *processMoveLeft(unsigned char *buffer_frame, unsigned width, unsi
     // fill left over pixels with white pixels
     for (int row = 0; row < height; ++row)
     {
-        int row_pixel = row * width; 
+        int rowPixel = row * width; 
         for (int column = width - offset; column < width; ++column)
         {
-            int base = 3 * (row_pixel + column);
+            int base = 3 * (rowPixel + column);
             buffer_frame[base] = 0xff;
             buffer_frame[base + 1] = 0xff;
             buffer_frame[base + 2] = 0xff;
