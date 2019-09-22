@@ -1,0 +1,6 @@
+#! /bin/csh -f
+
+cd bin
+make
+cd ..
+./bin/ECE454_Lab2 -g -f sensor_values.csv -i object_2D.bmp
