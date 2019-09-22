@@ -211,10 +211,12 @@ unsigned char *processMoveLeft(unsigned char *buffer_frame, unsigned width, unsi
  **********************************************************************************************************************/
 unsigned char *processRotateCW(unsigned char *buffer_frame, unsigned width, unsigned height,
                                int rotate_iteration) {
-    // handle negative offsets
-    if (rotate_iteration < 0){
-        return processRotateCCW(buffer_frame, width, height, rotate_iteration * -1);
-    }
+    rotate_iteration = rotate_iteration % 4;
+    if (rotate_iteration < 0)
+        rotate_iteration += 4;
+
+    if (rotate_iteration == 0)
+        return buffer_frame;
 
     // allocate memory for temporary image buffer
     unsigned char *rendered_frame = allocateFrame(width, height);
@@ -241,33 +243,6 @@ unsigned char *processRotateCW(unsigned char *buffer_frame, unsigned width, unsi
 
     // free temporary image buffer
     deallocateFrame(rendered_frame);
-
-    // return a pointer to the updated image buffer
-    return buffer_frame;
-}
-
-/***********************************************************************************************************************
- * @param buffer_frame - pointer pointing to a buffer storing the imported 24-bit bitmap image
- * @param width - width of the imported 24-bit bitmap image
- * @param height - height of the imported 24-bit bitmap image
- * @param rotate_iteration - rotate object inside frame buffer counter clockwise by 90 degrees, <iteration> times
- * @return - pointer pointing a buffer storing a modified 24-bit bitmap image
- * Note: You can assume the frame will always be square and you will be rotating the entire image
- **********************************************************************************************************************/
-unsigned char *processRotateCCW(unsigned char *buffer_frame, unsigned width, unsigned height,
-                                int rotate_iteration) {
-    if (rotate_iteration < 0){
-        // handle negative offsets
-        // rotating 90 degrees counter clockwise in opposite direction is equal to 90 degrees in cw direction
-        for (int iteration = 0; iteration > rotate_iteration; iteration--) {
-            buffer_frame = processRotateCW(buffer_frame, width, height, 1);
-        }
-    } else {
-        // rotating 90 degrees counter clockwise is equivalent of rotating 270 degrees clockwise
-        for (int iteration = 0; iteration < rotate_iteration; iteration++) {
-            buffer_frame = processRotateCW(buffer_frame, width, height, 3);
-        }
-    }
 
     // return a pointer to the updated image buffer
     return buffer_frame;
@@ -413,7 +388,7 @@ void implementation_driver(struct kv *sensor_values, int sensor_values_count, un
         } 
         else if (!strcmp(sensor_values[sensorValueIdx].key, "CCW"))
         {
-            frame_buffer = processRotateCCW(frame_buffer, width, height, value);
+            frame_buffer = processRotateCW(frame_buffer, width, height, -1 * value);
         } 
         else if (!strcmp(sensor_values[sensorValueIdx].key, "MX"))
         {
