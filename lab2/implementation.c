@@ -133,57 +133,50 @@ instruction parse_sensor_value(struct kv sensor_value)
     instr.argument_b = 0;
 
     char* key = sensor_value.key;
+
+    char first = *key;
+    if (first == 'M'){
+        if (key[1] == 'X')
+            instr.type = mirrorX;
+        else 
+            instr.type = mirrorY;
+
+        return instr;
+    }
+
     int value = sensor_value.value;
 
-    // TODO: optimize instead of using strcmp.  
-    if (!strcmp(key, "W"))
+    if (first == 'C')
     {
-        if (value != 0)
-        {
-            instr.type = translateXY;
+        instr.type = rotateCW;
+
+        // Rotation
+        if (key[1] == 'C')
+            // Counter-clockwise
+            instr.argument_a = -1 * value;
+        else
+            // Clockwise
+            instr.argument_a = value;
+
+        return instr;
+    }
+
+    instr.type = translateXY;
+
+    switch (first)
+    {
+        case 'W':
             instr.argument_b = -1 * value;
-        }
-    } else if (!strcmp(key, "S"))
-    {
-        if (value != 0)
-        {
-            instr.type = translateXY;
+            break;
+        case 'S':
             instr.argument_b = value;
-        }
-    } else if (!strcmp(key, "D"))
-    {
-        if (value != 0)
-        {
-            instr.type = translateXY;
+            break;
+        case 'D':
             instr.argument_a = value;
-        }
-    } else if (!strcmp(key, "A"))
-    {
-        if (value != 0)
-        {
-            instr.type = translateXY;
+            break;
+        case 'A':
             instr.argument_a = -1 * value;
-        }
-    } else if (!strcmp(key, "CW"))
-    {
-        if (value != 0)
-        {
-            instr.type = rotateCW;
-            instr.argument_a = value;
-        }
-    } else if (!strcmp(key, "CCW"))
-    {
-        if (value != 0)
-        {
-            instr.type = rotateCW;
-            instr.argument_a = -1 * value;
-        }
-    } else if (!strcmp(key, "MX"))
-    {
-        instr.type = mirrorX;
-    } else if (!strcmp(key, "MY"))
-    {
-        instr.type = mirrorY;
+            break;
     }
 
     return instr;
