@@ -4,6 +4,22 @@
 #include "utilities.h"  // DO NOT REMOVE this line
 #include "implementation_reference.h"   // DO NOT REMOVE this line
 
+typedef enum
+{
+    none,
+    translateXY,
+    rotateCW,
+    mirrorX,
+    mirrorY
+} instruction_type;
+
+typedef struct {
+    instruction_type type;
+    int argument_a; // Used by translate X and rotateCW
+    int argument_b; // Only used by translate Y
+} instruction;
+
+
 unsigned char *processMoveUp(unsigned char *buffer_frame, unsigned width, 
     unsigned height, int offset);
 
@@ -330,7 +346,7 @@ unsigned char *processMirrorY(unsigned char *buffer_frame, unsigned width, unsig
  **********************************************************************************************************************/
 void print_team_info(){
     // Please modify this field with something interesting
-    char team_name[] = "why-is-team-name-an-option-if-the-team-size-is-1";
+    char team_name[] = "0.1xer";
 
     // Please fill in your information
     char student_first_name[] = "Michael";
@@ -346,6 +362,52 @@ void print_team_info(){
     printf("\tstudent_student_number: %s\n", student_student_number);
 }
 
+instruction parse_sensor_value(struct kv sensor_value)
+{
+    instruction instr;
+    instr.type = none;
+    instr.argument_a = 0;
+    instr.argument_b = 0;
+
+    char* key = sensor_value.key;
+    int value = sensor_value.value;
+
+    // TODO: optimize instead of using strcmp.  
+    if (!strcmp(key, "W"))
+    {
+        instr.type = translateXY;
+        instr.argument_b = -1 * value;
+    } else if (!strcmp(key, "S"))
+    {
+        instr.type = translateXY;
+        instr.argument_b = value;
+    } else if (!strcmp(key, "D"))
+    {
+        instr.type = translateXY;
+        instr.argument_a = value;
+    } else if (!strcmp(key, "A"))
+    {
+        instr.type = translateXY;
+        instr.argument_a = -1 * value;
+    } else if (!strcmp(key, "CW"))
+    {
+        instr.type = rotateCW;
+        instr.argument_a = value;
+    } else if (!strcmp(key, "CCW"))
+    {
+        instr.type = rotateCW;
+        instr.argument_a = -1 * value;
+    } else if (!strcmp(key, "MX"))
+    {
+        instr.type = mirrorX;
+    } else if (!strcmp(key, "MY"))
+    {
+        instr.type = mirrorY;
+    }
+
+    return instr;
+}
+
 /***********************************************************************************************************************
  * WARNING: Do not modify the implementation_driver and team info prototype (name, parameter, return value) !!!
  *          You can modify anything else in this file
@@ -359,75 +421,143 @@ void print_team_info(){
  ***********************************************************************************************************************
  *
  **********************************************************************************************************************/
-void implementation_driver(struct kv *sensor_values, int sensor_values_count, unsigned char *frame_buffer,
-                           unsigned int width, unsigned int height, bool grading_mode) {
+void implementation_driver(
+        struct kv *sensor_values,
+        int sensor_values_count, 
+        unsigned char *frame_buffer,
+        unsigned int width,
+        unsigned int height, 
+        bool grading_mode)
+{
     int processed_frames = 0;
-    for (int sensorValueIdx = 0; sensorValueIdx < sensor_values_count; sensorValueIdx++) {
-       // printf("Processing sensor value #%d: %s, %d\n", sensorValueIdx, sensor_values[sensorValueIdx].key,
-              // sensor_values[sensorValueIdx].value);
-        int value = sensor_values[sensorValueIdx].value;
-        if (!strcmp(sensor_values[sensorValueIdx].key, "W")) 
+    int frames_to_process = sensor_values_count / 25;
+
+    instruction instructionQueue[25];
+
+    for (int frameIdx = 0; frameIdx < frames_to_process; frameIdx++)
+    {   
+        // Wipe the previous instruction queue
+        for (int i = 0; i < 25; i++)
+            instructionQueue[i].type = none;
+
+        // Read the first instruction
+        instructionQueue[0] = parse_sensor_value(sensor_values[frameIdx * 25]);
+
+        int previousInstructionIndex = 0;
+
+        for (int sensorIdx = 1; sensorIdx < 25; sensorIdx++)
         {
-            if (value > 0)
-                frame_buffer = processMoveUp(frame_buffer, width, height, value);
-            else if (value < 0)
-                frame_buffer = processMoveDown(frame_buffer, width, height, -1 * value);
-        } 
-        else if (!strcmp(sensor_values[sensorValueIdx].key, "A"))
-        {
-            if (value > 0) 
-                frame_buffer = processMoveLeft(frame_buffer, width, height, value);
-            else if (value < 0)
-                frame_buffer = processMoveRight(frame_buffer, width, height, -1 * value);
-        } 
-        else if (!strcmp(sensor_values[sensorValueIdx].key, "S"))
-        {
-            if (value > 0)  
-                frame_buffer = processMoveDown(frame_buffer, width, height, value);
-            else if (value < 0)
-                frame_buffer = processMoveUp(frame_buffer, width, height, -1 * value);
-        } 
-        else if (!strcmp(sensor_values[sensorValueIdx].key, "D"))
-        {
-            if (value > 0)
-                frame_buffer = processMoveRight(frame_buffer, width, height, value);
-            else if (value < 0)
-                frame_buffer = processMoveLeft(frame_buffer, width, height, -1 * value);
-        } 
-        else if (!strcmp(sensor_values[sensorValueIdx].key, "CW"))
-        {
-            frame_buffer = processRotateCW(frame_buffer, width, height, value);
-        } 
-        else if (!strcmp(sensor_values[sensorValueIdx].key, "CCW"))
-        {
-            frame_buffer = processRotateCW(frame_buffer, width, height, -1 * value);
-        } 
-        else if (!strcmp(sensor_values[sensorValueIdx].key, "MX"))
-        {
-            frame_buffer = processMirrorX(frame_buffer, width, height);
-        } else if (!strcmp(sensor_values[sensorValueIdx].key, "MY"))
-        {
-            frame_buffer = processMirrorY(frame_buffer, width, height);
+            instruction instr = parse_sensor_value(
+                sensor_values[frameIdx * 25 + sensorIdx]
+            );
+
+            // Compare to the previous instruction.
+            if (instr.type == instructionQueue[previousInstructionIndex].type)
+            {
+                // Update the previous instruction, skip this one.
+                switch (instr.type)
+                {
+                    case translateXY:
+                        instructionQueue[previousInstructionIndex].argument_b += instr.argument_b;
+                    case rotateCW:
+                        instructionQueue[previousInstructionIndex].argument_a += instr.argument_a;
+                        break;
+                    case mirrorX:
+                    case mirrorY:
+                        instructionQueue[previousInstructionIndex].type = none;
+                        while (previousInstructionIndex > 0 && instructionQueue[previousInstructionIndex].type == none)
+                            previousInstructionIndex--;
+                        break;
+                    default:
+                        break;
+                }
+            } else 
+            {
+                instructionQueue[sensorIdx] = instr;
+                previousInstructionIndex = sensorIdx;
+            }
         }
-        
-        // TODO
-        // ULTRA IMPORTANT, CHANGE THIS VALUE BACK TO 25 BEFORE SUBMITTING
-        // ULTRA IMPORTANT, CHANGE THIS VALUE BACK TO 25 BEFORE SUBMITTING
-        // ULTRA IMPORTANT, CHANGE THIS VALUE BACK TO 25 BEFORE SUBMITTING
-        // ULTRA IMPORTANT, CHANGE THIS VALUE BACK TO 25 BEFORE SUBMITTING
-        // ULTRA IMPORTANT, CHANGE THIS VALUE BACK TO 25 BEFORE SUBMITTING
-        // ULTRA IMPORTANT, CHANGE THIS VALUE BACK TO 25 BEFORE SUBMITTING
-        // ULTRA IMPORTANT, CHANGE THIS VALUE BACK TO 25 BEFORE SUBMITTING
-        // ULTRA IMPORTANT, CHANGE THIS VALUE BACK TO 25 BEFORE SUBMITTING
-        // ULTRA IMPORTANT, CHANGE THIS VALUE BACK TO 25 BEFORE SUBMITTING
-        // ULTRA IMPORTANT, CHANGE THIS VALUE BACK TO 25 BEFORE SUBMITTING
-        // ULTRA IMPORTANT, CHANGE THIS VALUE BACK TO 25 BEFORE SUBMITTING
-        // ULTRA IMPORTANT, CHANGE THIS VALUE BACK TO 25 BEFORE SUBMITTING
-        // AS WELL AS IN THE IMPLENTATION REFERENCE
-        processed_frames += 1;
-        if (processed_frames % 1 == 0) {
-            verifyFrame(frame_buffer, width, height, grading_mode);
+
+        // For debugging
+        for (int i = 0; i < 25; i++)
+        {
+            instruction instr = instructionQueue[i];
+            switch (instr.type)
+            {
+                case none:
+                    printf("None,");
+                    break;
+                case translateXY:
+                    printf("T(%d,%d),", instr.argument_a, instr.argument_b);
+                    break;
+                case rotateCW:
+                    printf("R(%d),", instr.argument_a);
+                    break;
+                case mirrorX:
+                    printf("M(X)");
+                    break;
+                case mirrorY:
+                    printf("M(Y)");
+                    break;
+                default:
+                    break;
+            }
         }
+        printf("\n");
     }
+
+    // for (int sensorValueIdx = 0; sensorValueIdx < sensor_values_count; sensorValueIdx++) {
+    //    // printf("Processing sensor value #%d: %s, %d\n", sensorValueIdx, sensor_values[sensorValueIdx].key,
+    //           // sensor_values[sensorValueIdx].value);
+    //     int value = sensor_values[sensorValueIdx].value;
+    //     if (!strcmp(sensor_values[sensorValueIdx].key, "W")) 
+    //     {
+    //         if (value > 0)
+    //             frame_buffer = processMoveUp(frame_buffer, width, height, value);
+    //         else if (value < 0)
+    //             frame_buffer = processMoveDown(frame_buffer, width, height, -1 * value);
+    //     } 
+    //     else if (!strcmp(sensor_values[sensorValueIdx].key, "A"))
+    //     {
+    //         if (value > 0) 
+    //             frame_buffer = processMoveLeft(frame_buffer, width, height, value);
+    //         else if (value < 0)
+    //             frame_buffer = processMoveRight(frame_buffer, width, height, -1 * value);
+    //     } 
+    //     else if (!strcmp(sensor_values[sensorValueIdx].key, "S"))
+    //     {
+    //         if (value > 0)  
+    //             frame_buffer = processMoveDown(frame_buffer, width, height, value);
+    //         else if (value < 0)
+    //             frame_buffer = processMoveUp(frame_buffer, width, height, -1 * value);
+    //     } 
+    //     else if (!strcmp(sensor_values[sensorValueIdx].key, "D"))
+    //     {
+    //         if (value > 0)
+    //             frame_buffer = processMoveRight(frame_buffer, width, height, value);
+    //         else if (value < 0)
+    //             frame_buffer = processMoveLeft(frame_buffer, width, height, -1 * value);
+    //     } 
+    //     else if (!strcmp(sensor_values[sensorValueIdx].key, "CW"))
+    //     {
+    //         frame_buffer = processRotateCW(frame_buffer, width, height, value);
+    //     } 
+    //     else if (!strcmp(sensor_values[sensorValueIdx].key, "CCW"))
+    //     {
+    //         frame_buffer = processRotateCW(frame_buffer, width, height, -1 * value);
+    //     } 
+    //     else if (!strcmp(sensor_values[sensorValueIdx].key, "MX"))
+    //     {
+    //         frame_buffer = processMirrorX(frame_buffer, width, height);
+    //     } else if (!strcmp(sensor_values[sensorValueIdx].key, "MY"))
+    //     {
+    //         frame_buffer = processMirrorY(frame_buffer, width, height);
+    //     }
+        
+    //     processed_frames += 1;
+    //     if (processed_frames % 25 == 0) {
+    //         verifyFrame(frame_buffer, width, height, grading_mode);
+    //     }
+    // }
     return;
 }

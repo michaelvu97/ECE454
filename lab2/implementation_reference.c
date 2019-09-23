@@ -393,7 +393,7 @@ void implementation_driver_reference(struct kv *sensor_values, int sensor_values
 //            printBMP(width, height, frame_buffer);
         }
         processed_frames += 1;
-        if (processed_frames % 1 == 0) {
+        if (processed_frames % 25 == 0) {
             recordFrame(frame_buffer, width, height, grading_mode);
         }
     }
