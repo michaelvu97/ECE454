@@ -213,6 +213,7 @@ void implementation_driver(
     int processed_frames = 0;
     int frames_to_process = sensor_values_count / 25;
 
+    // TODO create custom int buffers instead of char*.
     int buffer_b_is_dest = 1;
     unsigned char* frame_buffer_b = (unsigned char*) malloc(sizeof(unsigned char*) * width * height);
 
@@ -291,7 +292,7 @@ void implementation_driver(
 
         // Aggregate a transformation matrix for all the instructions, from left to right.
         transformation cumulative_transformation = get_identity();
-        for (int i = 0; i < 25; i++)
+        for (int i = 24; i >= 0; --i)
         {
             instruction instr = instructionQueue[i];
             if (instr.type == none)
@@ -326,13 +327,22 @@ void implementation_driver(
             }
         }
 
+        // Push onto register
+        int a = cumulative_transformation.a;
+        int b = cumulative_transformation.b;
+        int c = cumulative_transformation.c;
+        int d = cumulative_transformation.d;
+        int e = cumulative_transformation.e;
+        int f = cumulative_transformation.f;
+
         // Transform buffer
         for (int row = 0; row < height; row++)
         {
             for (int col = 0; col < width; col++)
             {
-                int col_prime = cumulative_transformation.a * col + cumulative_transformation.c * row + cumulative_transformation.e;
-                int row_prime = cumulative_transformation.b * col + cumulative_transformation.d * row + cumulative_transformation.f;
+                // possible todo: decompose into regions which are analyzed?
+                int col_prime = a * col + c * row + e;
+                int row_prime = b * col + d * row + f;
 
                 if (col_prime < 0 || col_prime >= width || row_prime < 0 || row_prime >= height)
                     continue;
@@ -346,7 +356,6 @@ void implementation_driver(
             }
         }
         
-
         verifyFrame(dest_buffer, width, height, grading_mode);
         buffer_b_is_dest = !buffer_b_is_dest;
     }
