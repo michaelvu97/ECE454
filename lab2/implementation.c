@@ -30,7 +30,7 @@ typedef struct transformation {
 } transformation;
 
 
-transformation get_transformation(int a, int b, int c, int d, int e, int f)
+static inline transformation get_transformation(int a, int b, int c, int d, int e, int f)
 {
     transformation t;
     t.a = a;
@@ -43,11 +43,12 @@ transformation get_transformation(int a, int b, int c, int d, int e, int f)
 }
 
 // Inline?
-transformation get_identity()
+static inline transformation get_identity()
 {
     return get_transformation(1, 0, 0, 1, 0, 0);
 }
 
+// TODO: this will probably be a big source of optimization opportunity
 // Multiplies A and B and stores in A.
 static inline void compose_transformation(transformation* a, transformation* b)
 {
