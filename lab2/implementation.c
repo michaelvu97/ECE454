@@ -189,6 +189,22 @@ instruction parse_sensor_value(struct kv sensor_value)
     return instr;
 }
 
+static inline void simplify_instructions_queue(instruction (*queue)[25])
+{
+    // This is totally optional, but may yield performance improvements in 
+    // huge instruction sets by reducing the matrix multiplication ops.
+
+    // Step 1. Simplify duplicated mirror instructions.
+    // int next_valid_instruction = 1;
+    // for (int i = 0; i < 24; i++)
+    // {
+    //     if (queue[i].type != mirrorX || queue[].type == non)
+    //         continue;
+
+
+    // }
+}
+
 
 /***********************************************************************************************************************
  * WARNING: Do not modify the implementation_driver and team info prototype (name, parameter, return value) !!!
@@ -239,32 +255,10 @@ void implementation_driver(
                 sensor_values[frameIdx * 25 + sensorIdx]
             );
 
-            // Compare to the previous instruction.
-            if (instr.type == instructionQueue[previousInstructionIndex].type)
-            {
-                // Update the previous instruction, skip this one.
-                switch (instr.type)
-                {
-                    case translateXY:
-                        instructionQueue[previousInstructionIndex].argument_b += instr.argument_b;
-                    case rotateCW:
-                        instructionQueue[previousInstructionIndex].argument_a += instr.argument_a;
-                        break;
-                    case mirrorX:
-                    case mirrorY:
-                        instructionQueue[previousInstructionIndex].type = none;
-                        while (previousInstructionIndex > 0 && instructionQueue[previousInstructionIndex].type == none)
-                            previousInstructionIndex--;
-                        break;
-                    default:
-                        break;
-                }
-            } else if (instr.type != none)
-            {
-                instructionQueue[sensorIdx] = instr;
-                previousInstructionIndex = sensorIdx;
-            }
+            instructionQueue[sensorIdx] = instr;
         }
+
+        simplify_instructions_queue(&instructionQueue);
 
         // For debugging
         // for (int i = 0; i < 25; i++)
