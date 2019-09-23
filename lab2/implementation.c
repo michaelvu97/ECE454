@@ -189,6 +189,7 @@ instruction parse_sensor_value(struct kv sensor_value)
     return instr;
 }
 
+
 /***********************************************************************************************************************
  * WARNING: Do not modify the implementation_driver and team info prototype (name, parameter, return value) !!!
  *          You can modify anything else in this file
@@ -216,6 +217,8 @@ void implementation_driver(
     // TODO create custom int buffers instead of char*.
     int buffer_b_is_dest = 1;
     unsigned char* frame_buffer_b = (unsigned char*) malloc(sizeof(unsigned char*) * width * height);
+
+    // Setup int-sized buffer
 
     instruction instructionQueue[25];
 
@@ -299,18 +302,17 @@ void implementation_driver(
                 continue;
 
             transformation t = instruction_to_transformation(instr, width);
-
             compose_transformation(&cumulative_transformation, &t);
         }
 
         // For debugging
-        printf("[%d %d %d]\n[%d %d %d]\n", cumulative_transformation.a,
-            cumulative_transformation.c,
-            cumulative_transformation.e,
-            cumulative_transformation.b,
-            cumulative_transformation.d,
-            cumulative_transformation.f
-        );
+        // printf("[%d %d %d]\n[%d %d %d]\n", cumulative_transformation.a,
+        //     cumulative_transformation.c,
+        //     cumulative_transformation.e,
+        //     cumulative_transformation.b,
+        //     cumulative_transformation.d,
+        //     cumulative_transformation.f
+        // );
 
         unsigned char* dest_buffer = buffer_b_is_dest ? frame_buffer_b : frame_buffer;
         unsigned char* src_buffer = buffer_b_is_dest ? frame_buffer : frame_buffer_b;
@@ -318,9 +320,10 @@ void implementation_driver(
         // Write white space. TODO: do optimized mask
         for (int row = 0; row < height; row++)
         {
+            int row_start = row * width;
             for (int col = 0; col < width; col++)
             {
-                int base = 3 * (row * width + col);
+                int base = 3 * (row_start + col);
                 dest_buffer[base] = 0xff;
                 dest_buffer[base + 1] = 0xff;
                 dest_buffer[base + 2] = 0xff;
@@ -338,6 +341,7 @@ void implementation_driver(
         // Transform buffer
         for (int row = 0; row < height; row++)
         {
+            int row_start = row * width;
             for (int col = 0; col < width; col++)
             {
                 // possible todo: decompose into regions which are analyzed?
@@ -347,7 +351,7 @@ void implementation_driver(
                 if (col_prime < 0 || col_prime >= width || row_prime < 0 || row_prime >= height)
                     continue;
 
-                int src = 3 * (row * width + col);
+                int src = 3 * (row_start + col);
                 int dest = 3 * (row_prime * width + col_prime);
                 // Copy
                 dest_buffer[dest] = src_buffer[src];
