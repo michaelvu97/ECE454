@@ -375,28 +375,46 @@ instruction parse_sensor_value(struct kv sensor_value)
     // TODO: optimize instead of using strcmp.  
     if (!strcmp(key, "W"))
     {
-        instr.type = translateXY;
-        instr.argument_b = -1 * value;
+        if (value != 0)
+        {
+            instr.type = translateXY;
+            instr.argument_b = -1 * value;
+        }
     } else if (!strcmp(key, "S"))
     {
-        instr.type = translateXY;
-        instr.argument_b = value;
+        if (value != 0)
+        {
+            instr.type = translateXY;
+            instr.argument_b = value;
+        }
     } else if (!strcmp(key, "D"))
     {
-        instr.type = translateXY;
-        instr.argument_a = value;
+        if (value != 0)
+        {
+            instr.type = translateXY;
+            instr.argument_a = value;
+        }
     } else if (!strcmp(key, "A"))
     {
-        instr.type = translateXY;
-        instr.argument_a = -1 * value;
+        if (value != 0)
+        {
+            instr.type = translateXY;
+            instr.argument_a = -1 * value;
+        }
     } else if (!strcmp(key, "CW"))
     {
-        instr.type = rotateCW;
-        instr.argument_a = value;
+        if (value != 0)
+        {
+            instr.type = rotateCW;
+            instr.argument_a = value;
+        }
     } else if (!strcmp(key, "CCW"))
     {
-        instr.type = rotateCW;
-        instr.argument_a = -1 * value;
+        if (value != 0)
+        {
+            instr.type = rotateCW;
+            instr.argument_a = -1 * value;
+        }
     } else if (!strcmp(key, "MX"))
     {
         instr.type = mirrorX;
@@ -471,7 +489,7 @@ void implementation_driver(
                     default:
                         break;
                 }
-            } else 
+            } else if (instr.type != none)
             {
                 instructionQueue[sensorIdx] = instr;
                 previousInstructionIndex = sensorIdx;
