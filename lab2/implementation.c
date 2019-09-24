@@ -351,5 +351,7 @@ void implementation_driver(
         buffer_b_is_dest = !buffer_b_is_dest;
     }
 
+    free(frame_buffer_b);
+
     return;
 }
