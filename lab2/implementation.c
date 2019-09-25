@@ -100,6 +100,56 @@ instruction parse_sensor_value(struct kv sensor_value)
     return instr;
 }
 
+static inline int max(int a, int b)
+{
+    return a > b ? a : b;
+}
+
+static inline int min(int a, int b)
+{
+    return a > b ? b : a;
+}
+
+void write_to_buffer_BR_x_y(
+    unsigned char* src_buffer,
+    unsigned char* dest_buffer,
+    int dim,
+    int origin_x, int origin_y)
+{
+
+    /*
+     * Calculate the read bounds of the source image.
+     */
+    int source_x_min = min(0, origin_x) * -1;
+    int source_y_min = min(0, origin_y) * -1;
+
+    int source_x_max = dim - max(0, origin_x);
+    int source_y_max = dim - max(0, origin_y);
+
+    /*
+     * Calculate the write bounds for the dest image
+     */
+    int dest_x_min = max(0, origin_x);
+    int dest_y_min = max(0, origin_y);
+
+    // printf("src:[(%d, %d), (%d, %d)] dest min:(%d, %d)\n", source_x_min, source_x_max, source_y_min, source_y_max, dest_x_min, dest_y_min);
+
+    for (int src_y = source_y_min, dest_y = dest_y_min; src_y < source_y_max; ++src_y, ++dest_y)
+    {
+        int src_y_offset = src_y * dim;
+        int dest_y_offset = dest_y * dim;
+        for (int src_x = source_x_min, dest_x = dest_x_min; src_x < source_x_max; ++src_x, ++dest_x)
+        {
+            int src_offset = 3 * (src_y_offset + src_x);
+            int dest_offset = 3 * (dest_y_offset + dest_x);
+
+            dest_buffer[dest_offset] = src_buffer[src_offset];
+            dest_buffer[dest_offset + 1] = src_buffer[src_offset + 1];
+            dest_buffer[dest_offset + 2] = src_buffer[src_offset + 2];
+        }
+    }
+}
+
 /***********************************************************************************************************************
  * WARNING: Do not modify the implementation_driver and team info prototype (name, parameter, return value) !!!
  *          You can modify anything else in this file
@@ -131,7 +181,7 @@ void implementation_driver(
     unsigned char* frame_buffer_b = (unsigned char*) malloc(sizeof(unsigned char*) * width * height);
 
     for (int frameIdx = 0; frameIdx < frames_to_process; frameIdx++)
-    {   
+    {
         int origin_x = 0, origin_y = 0;
         int unit_x_x = 1, unit_x_y = 0;
         int unit_y_x = 0, unit_y_y = 1;
@@ -233,47 +283,8 @@ void implementation_driver(
         int unit_y_x_dir = unit_y_x - origin_x;
         int unit_y_y_dir = unit_y_y - origin_y;
 
-        // Transform buffer
-        for (int row = 0; row < height; row++)
-        {
-            int row_start = row * width;
-            for (int col = 0; col < width; col++)
-            {
-                // possible todo: decompose into regions which are analyzed?
-                int x_offset;
-                if (unit_x_x_dir > 0)
-                    x_offset = col;
-                else if (unit_x_x_dir < 0)
-                    x_offset = -1 * col;
-                else if (unit_y_x_dir > 0)
-                    x_offset = row;
-                else
-                    x_offset = -1 * row;
-
-                int y_offset;
-                if (unit_y_y_dir > 0)
-                    y_offset = row;
-                else if (unit_y_y_dir < 0)
-                    y_offset = -1 * row;
-                else if (unit_x_y_dir > 0)
-                    y_offset = col;
-                else
-                    y_offset = -1 * col;
-
-                int col_prime = origin_x + x_offset;
-                int row_prime = origin_y + y_offset;
-
-                if (col_prime < 0 || col_prime >= width || row_prime < 0 || row_prime >= height)
-                    continue;
-
-                int src = 3 * (row_start + col);
-                int dest = 3 * (row_prime * width + col_prime);
-                // Copy
-                dest_buffer[dest] = src_buffer[src];
-                dest_buffer[dest + 1] = src_buffer[src + 1];
-                dest_buffer[dest + 2] = src_buffer[src + 2];
-            }
-        }
+        // TODO determine which to run
+        write_to_buffer_BR_x_y(src_buffer, dest_buffer, width, origin_x, origin_y);
         
         verifyFrame(dest_buffer, width, height, grading_mode);
         buffer_b_is_dest = !buffer_b_is_dest;
