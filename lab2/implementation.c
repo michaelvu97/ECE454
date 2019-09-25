@@ -8,7 +8,8 @@
 typedef enum
 {
     none,
-    translateXY,
+    translateX,
+    translateY,
     rotateCW,
     mirrorX,
     mirrorY
@@ -16,55 +17,8 @@ typedef enum
 
 typedef struct {
     instruction_type type;
-    int argument_a; // Used by translate X and rotateCW
-    int argument_b; // Only used by translate Y
+    int argument; // Used by translateX,Y and rotateCW
 } instruction;
-
-typedef struct transformation {
-    int a,b,c,d,e,f;
-    /*
-     *  |a c e|
-     *  |b d f|
-     *  |0 0 1|
-     */
-} transformation;
-
-
-static inline transformation get_transformation(int a, int b, int c, int d, int e, int f)
-{
-    transformation t;
-    t.a = a;
-    t.b = b;
-    t.c = c;
-    t.d = d;
-    t.e = e;
-    t.f = f;
-    return t;
-}
-
-// Inline?
-static inline transformation get_identity()
-{
-    return get_transformation(1, 0, 0, 1, 0, 0);
-}
-
-// TODO: this will probably be a big source of optimization opportunity
-// Multiplies A and B and stores in A.
-static inline void compose_transformation(transformation* a, transformation* b)
-{
-    int a_prime = a->a*b->a + a->c*b->b;
-    int b_prime = a->b*b->a + a->d*b->b;
-    int c_prime = a->a*b->c + a->c*b->d;
-    int d_prime = a->b*b->c + a->d*b->d;
-    int e_prime = a->a*b->e + a->c*b->f + a->e;
-    int f_prime = a->b*b->e + a->d*b->f + a->f;
-    a->a = a_prime;
-    a->b = b_prime;
-    a->c = c_prime;
-    a->d = d_prime;
-    a->e = e_prime;
-    a->f = f_prime;
-}
 
 /***********************************************************************************************************************
  * WARNING: Do not modify the implementation_driver and team info prototype (name, parameter, return value) !!!
@@ -72,7 +26,7 @@ static inline void compose_transformation(transformation* a, transformation* b)
  **********************************************************************************************************************/
 void print_team_info(){
     // Please modify this field with something interesting
-    char team_name[] = "0.1xer";
+    char team_name[] = "😉";
 
     // Please fill in your information
     char student_first_name[] = "Michael";
@@ -88,49 +42,11 @@ void print_team_info(){
     printf("\tstudent_student_number: %s\n", student_student_number);
 }
 
-transformation rotation_to_transformation(int rotation, int image_side_length)
-{
-    rotation = rotation % 4;
-    if (rotation < 0)
-        rotation += 4;
-    switch (rotation)
-    {
-        case 0:
-            return get_identity();
-        case 1:
-            return get_transformation(0, 1, -1, 0, image_side_length - 1, 0);
-        case 2:
-            // Note for later: rotating by 180 is the same as mirroring across both axes
-            return get_transformation(-1, 0, 0, -1, image_side_length - 1, image_side_length - 1);
-        case 3:
-            return get_transformation(0, -1, 1, 0, 0, image_side_length - 1);
-    }
-}
-
-transformation instruction_to_transformation(instruction instr, int image_side_length)
-{
-    // Assumes that instr is not none.
-    switch (instr.type)
-    {
-        case rotateCW:
-           return rotation_to_transformation(instr.argument_a, image_side_length);
-        case translateXY:
-            return get_transformation(1, 0, 0, 1, instr.argument_a, instr.argument_b);
-        case mirrorX:
-            return get_transformation(-1, 0, 0, 1, image_side_length - 1, 0);
-        case mirrorY:
-            return get_transformation(1, 0, 0, -1, 0, image_side_length - 1);
-    }
-
-    printf("oops");
-}
-
 instruction parse_sensor_value(struct kv sensor_value)
 {
     instruction instr;
     instr.type = none;
-    instr.argument_a = 0;
-    instr.argument_b = 0;
+    instr.argument = 0;
 
     char* key = sensor_value.key;
 
@@ -153,51 +69,36 @@ instruction parse_sensor_value(struct kv sensor_value)
         // Rotation
         if (key[1] == 'C')
             // Counter-clockwise
-            instr.argument_a = -1 * value;
+            instr.argument = -1 * value;
         else
             // Clockwise
-            instr.argument_a = value;
+            instr.argument = value;
 
         return instr;
     }
 
-    instr.type = translateXY;
+    instr.type = translateX;
 
     switch (first)
     {
         case 'W':
-            instr.argument_b = -1 * value;
+            instr.type = translateY;
+            instr.argument = -1 * value;
             break;
         case 'S':
-            instr.argument_b = value;
+            instr.type = translateY;
+            instr.argument = value;
             break;
         case 'D':
-            instr.argument_a = value;
+            instr.argument = value;
             break;
         case 'A':
-            instr.argument_a = -1 * value;
+            instr.argument = -1 * value;
             break;
     }
 
     return instr;
 }
-
-static inline void simplify_instructions_queue(instruction (*queue)[25])
-{
-    // This is totally optional, but may yield performance improvements in 
-    // huge instruction sets by reducing the matrix multiplication ops.
-
-    // Step 1. Simplify duplicated mirror instructions.
-    // int next_valid_instruction = 1;
-    // for (int i = 0; i < 24; i++)
-    // {
-    //     if (queue[i].type != mirrorX || queue[].type == non)
-    //         continue;
-
-
-    // }
-}
-
 
 /***********************************************************************************************************************
  * WARNING: Do not modify the implementation_driver and team info prototype (name, parameter, return value) !!!
@@ -223,83 +124,93 @@ void implementation_driver(
     int processed_frames = 0;
     int frames_to_process = sensor_values_count / 25;
 
+    int LAMBDA = width - 1;
+
     // TODO create custom int buffers instead of char*.
     int buffer_b_is_dest = 1;
     unsigned char* frame_buffer_b = (unsigned char*) malloc(sizeof(unsigned char*) * width * height);
 
-    // Setup int-sized buffer
-
-    instruction instructionQueue[25];
-
     for (int frameIdx = 0; frameIdx < frames_to_process; frameIdx++)
     {   
-        // Wipe the previous instruction queue
-        for (int i = 0; i < 25; i++)
-            instructionQueue[i].type = none;
+        int origin_x = 0, origin_y = 0;
+        int unit_x_x = 1, unit_x_y = 0;
+        int unit_y_x = 0, unit_y_y = 1;
 
-        // Read the first instruction
-        instructionQueue[0] = parse_sensor_value(sensor_values[frameIdx * 25]);
-
-        int previousInstructionIndex = 0;
-
-        for (int sensorIdx = 1; sensorIdx < 25; sensorIdx++)
+        for (int sensorIdx = 0; sensorIdx < 25; sensorIdx++)
         {
             instruction instr = parse_sensor_value(
                 sensor_values[frameIdx * 25 + sensorIdx]
             );
 
-            instructionQueue[sensorIdx] = instr;
+            int val = instr.argument;
+
+            // TODO opt
+            switch (instr.type)
+            {
+                case translateX:
+                    origin_x += val;
+                    unit_x_x += val;
+                    unit_y_x += val;
+                    break;
+                case translateY:
+                    origin_y += val;
+                    unit_x_y += val;
+                    unit_y_y += val;
+                    break;
+                case rotateCW:
+                    // Constraint val to [0,3].
+                    val = val % 4;
+                    if (val < 0)
+                        val += 4;
+                    
+                    if (val == 2)
+                    {
+                        origin_x = LAMBDA - origin_x;
+                        origin_y = LAMBDA - origin_y;
+                        unit_x_x = LAMBDA - unit_x_x;
+                        unit_x_y = LAMBDA - unit_x_y;
+                        unit_y_x = LAMBDA - unit_y_x;
+                        unit_y_y = LAMBDA - unit_y_y;
+                    }
+                    else 
+                    {
+                        int temp_origin_x = origin_x, 
+                        temp_unit_x_x = unit_x_x, 
+                        temp_unit_y_x = unit_y_x;
+
+                        if (val == 1)
+                        {
+                            origin_x = LAMBDA - origin_y;
+                            origin_y = temp_origin_x;
+                            unit_x_x = LAMBDA - unit_x_y;
+                            unit_x_y = temp_unit_x_x;
+                            unit_y_x = LAMBDA - unit_y_y;
+                            unit_y_y = temp_unit_y_x;
+                        } else if (val == 3)
+                        {
+                            origin_x = origin_y;
+                            origin_y = LAMBDA - temp_origin_x;
+                            unit_x_x = unit_x_y;
+                            unit_x_y = LAMBDA - temp_unit_x_x;
+                            unit_y_x = unit_y_y;
+                            unit_y_y = LAMBDA - temp_unit_y_x;
+                        }
+                    }
+                    break;
+                case mirrorX:
+                    origin_y = LAMBDA - origin_y;
+                    unit_x_y = LAMBDA - unit_x_y;
+                    unit_y_y = LAMBDA - unit_y_y;
+                    break;
+                case mirrorY:
+                    origin_x = LAMBDA - origin_x;
+                    unit_x_x = LAMBDA - unit_x_x;
+                    unit_y_x = LAMBDA - unit_y_x;
+                    break;
+                default:
+                    break;
+            }
         }
-
-        simplify_instructions_queue(&instructionQueue);
-
-        // For debugging
-        // for (int i = 0; i < 25; i++)
-        // {
-        //     instruction instr = instructionQueue[i];
-        //     switch (instr.type)
-        //     {
-        //         case none:
-        //             printf("None,");
-        //             break;
-        //         case translateXY:
-        //             printf("T(%d,%d),", instr.argument_a, instr.argument_b);
-        //             break;
-        //         case rotateCW:
-        //             printf("R(%d),", instr.argument_a);
-        //             break;
-        //         case mirrorX:
-        //             printf("M(X)");
-        //             break;
-        //         case mirrorY:
-        //             printf("M(Y)");
-        //             break;
-        //         default:
-        //             break;
-        //     }
-        // }
-        // printf("\n");
-
-        // Aggregate a transformation matrix for all the instructions, from left to right.
-        transformation cumulative_transformation = get_identity();
-        for (int i = 24; i >= 0; --i)
-        {
-            instruction instr = instructionQueue[i];
-            if (instr.type == none)
-                continue;
-
-            transformation t = instruction_to_transformation(instr, width);
-            compose_transformation(&cumulative_transformation, &t);
-        }
-
-        // For debugging
-        // printf("[%d %d %d]\n[%d %d %d]\n", cumulative_transformation.a,
-        //     cumulative_transformation.c,
-        //     cumulative_transformation.e,
-        //     cumulative_transformation.b,
-        //     cumulative_transformation.d,
-        //     cumulative_transformation.f
-        // );
 
         unsigned char* dest_buffer = buffer_b_is_dest ? frame_buffer_b : frame_buffer;
         unsigned char* src_buffer = buffer_b_is_dest ? frame_buffer : frame_buffer_b;
@@ -317,13 +228,10 @@ void implementation_driver(
             }
         }
 
-        // Push onto register
-        int a = cumulative_transformation.a;
-        int b = cumulative_transformation.b;
-        int c = cumulative_transformation.c;
-        int d = cumulative_transformation.d;
-        int e = cumulative_transformation.e;
-        int f = cumulative_transformation.f;
+        int unit_x_x_dir = unit_x_x - origin_x;
+        int unit_x_y_dir = unit_x_y - origin_y;
+        int unit_y_x_dir = unit_y_x - origin_x;
+        int unit_y_y_dir = unit_y_y - origin_y;
 
         // Transform buffer
         for (int row = 0; row < height; row++)
@@ -332,8 +240,28 @@ void implementation_driver(
             for (int col = 0; col < width; col++)
             {
                 // possible todo: decompose into regions which are analyzed?
-                int col_prime = a * col + c * row + e;
-                int row_prime = b * col + d * row + f;
+                int x_offset;
+                if (unit_x_x_dir > 0)
+                    x_offset = col;
+                else if (unit_x_x_dir < 0)
+                    x_offset = -1 * col;
+                else if (unit_y_x_dir > 0)
+                    x_offset = row;
+                else
+                    x_offset = -1 * row;
+
+                int y_offset;
+                if (unit_y_y_dir > 0)
+                    y_offset = row;
+                else if (unit_y_y_dir < 0)
+                    y_offset = -1 * row;
+                else if (unit_x_y_dir > 0)
+                    y_offset = col;
+                else
+                    y_offset = -1 * col;
+
+                int col_prime = origin_x + x_offset;
+                int row_prime = origin_y + y_offset;
 
                 if (col_prime < 0 || col_prime >= width || row_prime < 0 || row_prime >= height)
                     continue;
