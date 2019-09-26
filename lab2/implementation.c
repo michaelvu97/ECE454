@@ -116,7 +116,6 @@ void write_to_buffer_BR_x_y(
     int dim,
     int origin_x, int origin_y)
 {
-
     /*
      * Calculate the read bounds of the source image.
      */
@@ -132,7 +131,8 @@ void write_to_buffer_BR_x_y(
     int dest_x_min = max(0, origin_x);
     int dest_y_min = max(0, origin_y);
 
-    // printf("src:[(%d, %d), (%d, %d)] dest min:(%d, %d)\n", source_x_min, source_x_max, source_y_min, source_y_max, dest_x_min, dest_y_min);
+    // For debugging
+    printf("BR_x_y\n");
 
     for (int src_y = source_y_min, dest_y = dest_y_min; src_y < source_y_max; ++src_y, ++dest_y)
     {
@@ -148,6 +148,213 @@ void write_to_buffer_BR_x_y(
             dest_buffer[dest_offset + 2] = src_buffer[src_offset + 2];
         }
     }
+}
+
+void write_to_buffer_BR_y_x(
+    unsigned char* src_buffer,
+    unsigned char* dest_buffer,
+    int dim,
+    int origin_x, int origin_y)
+{
+    /*
+     * Calculate the read bounds of the source image.
+     */
+    int source_x_min = min(0, origin_y) * -1;
+    int source_y_min = min(0, origin_x) * -1;
+
+    int source_x_max = dim - max(0, origin_y);
+    int source_y_max = dim - max(0, origin_x);
+
+    /*
+     * Calculate the write bounds for the dest image
+     */
+    int dest_x_min = max(0, origin_x);
+    int dest_y_min = max(0, origin_y);
+
+    printf("BR_y_x\n");
+
+    // TODO redo this section
+    for (int src_y = source_y_min, dest_x = dest_x_min; src_y < source_y_max; ++src_y, ++dest_x)
+    {
+        int src_y_offset = src_y * dim;
+        for (int src_x = source_x_min, dest_y = dest_y_min; src_x < source_x_max; ++src_x, ++dest_y)
+        {
+            int src_offset = 3 * (src_y_offset + src_x);
+            int dest_offset = 3 * (dim * dest_y + dest_x);
+
+            dest_buffer[dest_offset] = src_buffer[src_offset];
+            dest_buffer[dest_offset + 1] = src_buffer[src_offset + 1];
+            dest_buffer[dest_offset + 2] = src_buffer[src_offset + 2];
+        }
+    }
+}
+
+void write_to_buffer_BL_y_x(
+    unsigned char* src_buffer,
+    unsigned char* dest_buffer,
+    int dim,
+    int origin_x, int origin_y)
+{
+    /*
+     * Calculate the read bounds of the source image.
+     */
+    int source_x_min = min(0, origin_x) * -1;
+    int source_y_min = min(0, origin_y) * -1;
+
+    int source_x_max = dim - max(0, origin_x);
+    int source_y_max = dim - max(0, origin_y);
+
+    /*
+     * Calculate the write bounds for the dest image
+     */
+    int dest_x_min = max(0, origin_x);
+    int dest_y_min = max(0, origin_y);
+
+    printf("BL_y_x\n");
+    printf("NOT IMPLEMENTED\n");   
+}
+
+void write_to_buffer_BL_x_y(
+    unsigned char* src_buffer,
+    unsigned char* dest_buffer,
+    int dim,
+    int origin_x, int origin_y)
+{
+    int dim_inclusive = dim - 1;
+
+    /*
+     * Calculate the read bounds of the source image.
+     */
+    int source_x_min = max(0, origin_x - dim_inclusive);
+    int source_y_min = max(0, -1 * origin_y);
+
+    int source_x_max = dim - max(0, dim - origin_x);
+    int source_y_max = dim - max(0, origin_y);
+
+    /*
+     * Calculate the write bounds for the dest image
+     */
+    int dest_x_max = min(dim, origin_x) - 1;
+    int dest_y_min = max(0, origin_y);
+
+    printf("BL_x_y\n");
+
+    printf("src:(%d, %d), (%d, %d), dest: %d, %d\n", source_x_min, source_x_max, source_y_min, source_y_max, dest_x_max, dest_y_min);
+
+    for (int src_y = source_y_min, dest_y = dest_y_min; src_y < source_y_max; ++src_y, ++dest_y)
+    {
+        int src_y_offset = src_y * dim;
+        int dest_y_offset = dest_y * dim;
+        for (int src_x = source_x_min, dest_x = dest_x_max; src_x < source_x_max; ++src_x, --dest_x)
+        {
+            int src_offset = 3 * (src_y_offset + src_x);
+            int dest_offset = 3 * (dest_y_offset + dest_x);
+
+            dest_buffer[dest_offset] = src_buffer[src_offset];
+            dest_buffer[dest_offset + 1] = src_buffer[src_offset + 1];
+            dest_buffer[dest_offset + 2] = src_buffer[src_offset + 2];
+        }
+    }
+}
+
+void write_to_buffer_TR_y_x(
+    unsigned char* src_buffer,
+    unsigned char* dest_buffer,
+    int dim,
+    int origin_x, int origin_y)
+{
+    /*
+     * Calculate the read bounds of the source image.
+     */
+    int source_x_min = min(0, origin_x) * -1;
+    int source_y_min = min(0, origin_y) * -1;
+
+    int source_x_max = dim - max(0, origin_x);
+    int source_y_max = dim - max(0, origin_y);
+
+    /*
+     * Calculate the write bounds for the dest image
+     */
+    int dest_x_min = max(0, origin_x);
+    int dest_y_min = max(0, origin_y);
+
+    printf("TR_y_x\n");
+    printf("NOT IMPLEMENTED\n");   
+}
+
+void write_to_buffer_TR_x_y(
+    unsigned char* src_buffer,
+    unsigned char* dest_buffer,
+    int dim,
+    int origin_x, int origin_y)
+{
+    /*
+     * Calculate the read bounds of the source image.
+     */
+    int source_x_min = min(0, origin_x) * -1;
+    int source_y_min = min(0, origin_y) * -1;
+
+    int source_x_max = dim - max(0, origin_x);
+    int source_y_max = dim - max(0, origin_y);
+
+    /*
+     * Calculate the write bounds for the dest image
+     */
+    int dest_x_min = max(0, origin_x);
+    int dest_y_min = max(0, origin_y);
+
+    printf("TR_x_y\n");
+    printf("NOT IMPLEMENTED\n");   
+}
+
+void write_to_buffer_TL_y_x(
+    unsigned char* src_buffer,
+    unsigned char* dest_buffer,
+    int dim,
+    int origin_x, int origin_y)
+{
+    /*
+     * Calculate the read bounds of the source image.
+     */
+    int source_x_min = min(0, origin_x) * -1;
+    int source_y_min = min(0, origin_y) * -1;
+
+    int source_x_max = dim - max(0, origin_x);
+    int source_y_max = dim - max(0, origin_y);
+
+    /*
+     * Calculate the write bounds for the dest image
+     */
+    int dest_x_min = max(0, origin_x);
+    int dest_y_min = max(0, origin_y);
+
+    printf("TL_y_x\n");
+    printf("NOT IMPLEMENTED\n");   
+}
+
+void write_to_buffer_TL_x_y(
+    unsigned char* src_buffer,
+    unsigned char* dest_buffer,
+    int dim,
+    int origin_x, int origin_y)
+{
+    /*
+     * Calculate the read bounds of the source image.
+     */
+    int source_x_min = min(0, origin_x) * -1;
+    int source_y_min = min(0, origin_y) * -1;
+
+    int source_x_max = dim - max(0, origin_x);
+    int source_y_max = dim - max(0, origin_y);
+
+    /*
+     * Calculate the write bounds for the dest image
+     */
+    int dest_x_min = max(0, origin_x);
+    int dest_y_min = max(0, origin_y);
+
+    printf("TL_x_y\n");
+    printf("NOT IMPLEMENTED\n");   
 }
 
 /***********************************************************************************************************************
@@ -283,8 +490,35 @@ void implementation_driver(
         int unit_y_x_dir = unit_y_x - origin_x;
         int unit_y_y_dir = unit_y_y - origin_y;
 
-        // TODO determine which to run
-        write_to_buffer_BR_x_y(src_buffer, dest_buffer, width, origin_x, origin_y);
+        // TODO determine which to run in a more optimized way
+        if (unit_x_x_dir > 0)
+        {
+            if (unit_y_y_dir > 0)
+                write_to_buffer_BR_x_y(src_buffer, dest_buffer, width, origin_x, origin_y);
+            else
+                write_to_buffer_TR_x_y(src_buffer, dest_buffer, width, origin_x, origin_y);
+        }
+        else if (unit_x_x_dir < 0)
+        {
+            if (unit_y_y_dir > 0)
+                write_to_buffer_BL_x_y(src_buffer, dest_buffer, width, origin_x, origin_y);
+            else
+                write_to_buffer_TL_x_y(src_buffer, dest_buffer, width, origin_x, origin_y);
+        }
+        else if (unit_x_y_dir > 0)
+        {
+            if (unit_y_x_dir > 0)
+                write_to_buffer_BR_y_x(src_buffer, dest_buffer, width, origin_x, origin_y);
+            else
+                write_to_buffer_BL_y_x(src_buffer, dest_buffer, width, origin_x, origin_y);
+        }
+        else
+        {
+            if (unit_y_x_dir > 0)
+                write_to_buffer_TR_y_x(src_buffer, dest_buffer, width, origin_x, origin_y);
+            else
+                write_to_buffer_TL_y_x(src_buffer, dest_buffer, width, origin_x, origin_y);
+        }
         
         verifyFrame(dest_buffer, width, height, grading_mode);
         buffer_b_is_dest = !buffer_b_is_dest;
