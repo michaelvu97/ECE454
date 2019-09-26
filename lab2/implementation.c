@@ -134,6 +134,8 @@ void write_to_buffer_BR_x_y(
     // For debugging
     printf("BR_x_y\n");
 
+    printf("%d %d %d %d %d %d\n", source_x_min, source_x_max, source_y_min, source_y_max, dest_x_min, dest_y_min);
+
     for (int src_y = source_y_min, dest_y = dest_y_min; src_y < source_y_max; ++src_y, ++dest_y)
     {
         int src_y_offset = src_y * dim;
@@ -195,23 +197,26 @@ void write_to_buffer_BL_y_x(
     int dim,
     int origin_x, int origin_y)
 {
+    int dim_inclusive = dim - 1;
+
     /*
      * Calculate the read bounds of the source image.
      */
-    int source_x_min = min(0, origin_x) * -1;
-    int source_y_min = min(0, origin_y) * -1;
+    int source_x_min = min(0, origin_y) * -1;
+    int source_y_min = max(0, origin_x - dim_inclusive);
 
-    int source_x_max = dim - max(0, origin_x);
-    int source_y_max = dim - max(0, origin_y);
+    int source_x_max = dim - max(0, origin_y);
+    int source_y_max = dim - max(0, dim - origin_x);
 
     /*
      * Calculate the write bounds for the dest image
      */
-    int dest_x_min = max(0, origin_x);
-    int dest_y_min = max(0, origin_y);
+    int dest_x_max = max(0, min(dim, origin_x) - 1);
+    int dest_y_max = max(0, min(dim, origin_y) - 1);
 
     printf("BL_y_x\n");
-    printf("NOT IMPLEMENTED\n");   
+
+    printf("src:(%d, %d), (%d, %d), dest: (%d, %d)\n", source_x_min, source_x_max, source_y_min, source_y_max, dest_x_max, dest_y_max);
 }
 
 void write_to_buffer_BL_x_y(
@@ -234,12 +239,10 @@ void write_to_buffer_BL_x_y(
     /*
      * Calculate the write bounds for the dest image
      */
-    int dest_x_max = min(dim, origin_x) - 1;
+    int dest_x_max = max(0, min(dim, origin_x) - 1);
     int dest_y_min = max(0, origin_y);
 
     printf("BL_x_y\n");
-
-    printf("src:(%d, %d), (%d, %d), dest: %d, %d\n", source_x_min, source_x_max, source_y_min, source_y_max, dest_x_max, dest_y_min);
 
     for (int src_y = source_y_min, dest_y = dest_y_min; src_y < source_y_max; ++src_y, ++dest_y)
     {
@@ -383,16 +386,27 @@ void implementation_driver(
 
     int LAMBDA = width - 1;
 
-    // TODO create custom int buffers instead of char*.
     int buffer_b_is_dest = 1;
+    // this is temporary, for debugging the different transformation
+    unsigned char* frame_buffer_a = (unsigned char*) malloc(sizeof(unsigned char*) * width * height);
     unsigned char* frame_buffer_b = (unsigned char*) malloc(sizeof(unsigned char*) * width * height);
 
-    for (int frameIdx = 0; frameIdx < frames_to_process; frameIdx++)
+    // TODO remove
+    // copy frame buffer into_a
+    int limit = 3 * width * height;
+    for (int i = 0; i < limit; i++)
     {
-        int origin_x = 0, origin_y = 0;
-        int unit_x_x = 1, unit_x_y = 0;
-        int unit_y_x = 0, unit_y_y = 1;
+        frame_buffer_a[i] = frame_buffer[i];
+    }
 
+    int origin_x = 0, origin_y = 0;
+    int unit_x_x = 1, unit_x_y = 0;
+    int unit_y_x = 0, unit_y_y = 1;
+
+    for (int frameIdx = 0; frameIdx < frames_to_process; frameIdx++)
+    {   
+        // These can be reset every frame, since we use the last transformation
+        // as the source.
         for (int sensorIdx = 0; sensorIdx < 25; sensorIdx++)
         {
             instruction instr = parse_sensor_value(
@@ -469,8 +483,10 @@ void implementation_driver(
             }
         }
 
-        unsigned char* dest_buffer = buffer_b_is_dest ? frame_buffer_b : frame_buffer;
-        unsigned char* src_buffer = buffer_b_is_dest ? frame_buffer : frame_buffer_b;
+        unsigned char* dest_buffer = buffer_b_is_dest ? frame_buffer_b : frame_buffer_a;
+
+        // TODO switch back
+        unsigned char* src_buffer = frame_buffer;
 
         // Write white space. TODO: do optimized mask
         for (int row = 0; row < height; row++)
@@ -489,6 +505,8 @@ void implementation_driver(
         int unit_x_y_dir = unit_x_y - origin_y;
         int unit_y_x_dir = unit_y_x - origin_x;
         int unit_y_y_dir = unit_y_y - origin_y;
+
+        printf("%d, %d\n", origin_x, origin_y);
 
         // TODO determine which to run in a more optimized way
         if (unit_x_x_dir > 0)
@@ -524,6 +542,7 @@ void implementation_driver(
         buffer_b_is_dest = !buffer_b_is_dest;
     }
 
+    free(frame_buffer_a);
     free(frame_buffer_b);
 
     return;
