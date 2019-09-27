@@ -374,23 +374,39 @@ void write_to_buffer_TL_x_y(
     int dim,
     int origin_x, int origin_y)
 {
+    int dim_inclusive = dim - 1;
+
     /*
      * Calculate the read bounds of the source image.
      */
-    int source_x_min = min(0, origin_x) * -1;
-    int source_y_min = min(0, origin_y) * -1;
+    int source_x_min = max(0, origin_x - dim_inclusive);
+    int source_y_min = max(0, origin_y - dim_inclusive);
 
-    int source_x_max = dim - max(0, origin_x);
-    int source_y_max = dim - max(0, origin_y);
+    int source_x_max = min(dim, origin_x + 1 /* maybe */);
+    int source_y_max = min(dim, origin_y + 1);
 
     /*
      * Calculate the write bounds for the dest image
      */
-    int dest_x_min = max(0, origin_x);
-    int dest_y_min = max(0, origin_y);
+    int dest_x_start = min(dim_inclusive, origin_x);
+    int dest_y_start = min(dim_inclusive, origin_y);
 
     printf("TL_x_y\n");
-    printf("NOT IMPLEMENTED\n");   
+
+    for (int src_y = source_y_min, dest_y = dest_y_start; src_y < source_y_max; ++src_y, --dest_y)
+    {
+        int src_y_offset = src_y * dim;
+        int dest_y_offset = dest_y * dim;
+        for (int src_x = source_x_min, dest_x = dest_x_start; src_x < source_x_max; ++src_x, --dest_x)
+        {
+            int src_offset = 3 * (src_y_offset + src_x);
+            int dest_offset = 3 * (dest_y_offset + dest_x);
+
+            dest_buffer[dest_offset] = src_buffer[src_offset];
+            dest_buffer[dest_offset + 1] = src_buffer[src_offset + 1];
+            dest_buffer[dest_offset + 2] = src_buffer[src_offset + 2];
+        }
+    }
 }
 
 /***********************************************************************************************************************
