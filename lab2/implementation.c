@@ -236,16 +236,16 @@ void write_to_buffer_BL_x_y(
     /*
      * Calculate the write bounds for the dest image
      */
-    int dest_x_max = max(0, min(dim, origin_x) - 1);
-    int dest_y_min = max(0, origin_y);
+    int dest_x_start = max(0, min(dim_inclusive, origin_x));
+    int dest_y_start = max(0, origin_y);
 
     printf("BL_x_y\n");
 
-    for (int src_y = source_y_min, dest_y = dest_y_min; src_y < source_y_max; ++src_y, ++dest_y)
+    for (int src_y = source_y_min, dest_y = dest_y_start; src_y < source_y_max; ++src_y, ++dest_y)
     {
         int src_y_offset = src_y * dim;
         int dest_y_offset = dest_y * dim;
-        for (int src_x = source_x_min, dest_x = dest_x_max; src_x < source_x_max; ++src_x, --dest_x)
+        for (int src_x = source_x_min, dest_x = dest_x_start; src_x < source_x_max; ++src_x, --dest_x)
         {
             int src_offset = 3 * (src_y_offset + src_x);
             int dest_offset = 3 * (dest_y_offset + dest_x);
