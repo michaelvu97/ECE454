@@ -131,9 +131,6 @@ void write_to_buffer_BR_x_y(
     int dest_x_min = max(0, origin_x);
     int dest_y_min = max(0, origin_y);
 
-    // For debugging
-    printf("BR_x_y\n");
-
     for (int src_y = source_y_min, dest_y = dest_y_min; src_y < source_y_max; ++src_y, ++dest_y)
     {
         int src_y_offset = src_y * dim;
@@ -170,10 +167,7 @@ void write_to_buffer_BR_y_x(
      */
     int dest_x_min = max(0, origin_x);
     int dest_y_min = max(0, origin_y);
-
-    printf("BR_y_x\n");
-
-    // TODO redo this section
+    
     for (int src_y = source_y_min, dest_x = dest_x_min; src_y < source_y_max; ++src_y, ++dest_x)
     {
         int src_y_offset = src_y * dim;
@@ -209,11 +203,22 @@ void write_to_buffer_BL_y_x(
     /*
      * Calculate the write bounds for the dest image
      */
-    int dest_x_max = max(0, min(dim, origin_x) - 1);
-    int dest_y_max = max(0, min(dim, origin_y) - 1);
+    int dest_x_start = min(dim_inclusive, origin_x);
+    int dest_y_start = max(0, origin_y);
 
-    printf("BL_y_x\n");
-    printf("NOT IMPLEMENTED\n");
+    for (int src_y = source_y_min, dest_x = dest_x_start; src_y < source_y_max; ++src_y, --dest_x)
+    {
+        int src_y_offset = src_y * dim;
+        for (int src_x = source_x_min, dest_y = dest_y_start; src_x < source_x_max; ++src_x, ++dest_y)
+        {
+            int src_offset = 3 * (src_y_offset + src_x);
+            int dest_offset = 3 * (dim * dest_y + dest_x);
+
+            dest_buffer[dest_offset] = src_buffer[src_offset];
+            dest_buffer[dest_offset + 1] = src_buffer[src_offset + 1];
+            dest_buffer[dest_offset + 2] = src_buffer[src_offset + 2];
+        }
+    }
 }
 
 void write_to_buffer_BL_x_y(
@@ -238,8 +243,6 @@ void write_to_buffer_BL_x_y(
      */
     int dest_x_start = max(0, min(dim_inclusive, origin_x));
     int dest_y_start = max(0, origin_y);
-
-    printf("BL_x_y\n");
 
     for (int src_y = source_y_min, dest_y = dest_y_start; src_y < source_y_max; ++src_y, ++dest_y)
     {
@@ -280,8 +283,6 @@ void write_to_buffer_TR_y_x(
     int dest_x_start = max(0, origin_x);
     int dest_y_start = min(origin_y, dim_inclusive);
 
-    printf("TR_y_x\n");
-
     for (int src_y = source_y_min, dest_x = dest_x_start; src_y < source_y_max; ++src_y, ++dest_x)
     {
         int src_y_offset = src_y * dim;
@@ -319,9 +320,6 @@ void write_to_buffer_TR_x_y(
     int dest_x_start = max(0, origin_x);
     int dest_y_start = min(dim_inclusive, origin_y);
 
-    printf("TR_x_y\n");
-
-    // BORKEN RN, INVALID POINTER
     for (int src_y = source_y_min, dest_y = dest_y_start; src_y < source_y_max; ++src_y, --dest_y)
     {
         int src_y_offset = src_y * dim;
@@ -361,8 +359,6 @@ void write_to_buffer_TL_y_x(
     int dest_x_start = min(dim_inclusive, origin_x);
     int dest_y_start = min(dim_inclusive, origin_y);
 
-    printf("TL_y_x\n");
-
     for (int src_y = source_y_min, dest_x = dest_x_start; src_y < source_y_max; ++src_y, --dest_x)
     {
         int src_y_offset = src_y * dim;
@@ -401,8 +397,6 @@ void write_to_buffer_TL_x_y(
      */
     int dest_x_start = min(dim_inclusive, origin_x);
     int dest_y_start = min(dim_inclusive, origin_y);
-
-    printf("TL_x_y\n");
 
     for (int src_y = source_y_min, dest_y = dest_y_start; src_y < source_y_max; ++src_y, --dest_y)
     {
