@@ -167,7 +167,7 @@ void write_to_buffer_BR_y_x(
      */
     int dest_x_min = max(0, origin_x);
     int dest_y_min = max(0, origin_y);
-    
+
     for (int src_y = source_y_min, dest_x = dest_x_min; src_y < source_y_max; ++src_y, ++dest_x)
     {
         int src_y_offset = src_y * dim;
@@ -559,8 +559,6 @@ void implementation_driver(
         int unit_x_y_dir = unit_x_y - origin_y;
         int unit_y_x_dir = unit_y_x - origin_x;
         int unit_y_y_dir = unit_y_y - origin_y;
-
-        printf("%d, %d\n", origin_x, origin_y);
 
         // TODO determine which to run in a more optimized way
         if (unit_x_x_dir > 0)
