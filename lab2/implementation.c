@@ -17,6 +17,18 @@ typedef enum
     mirrorY
 } instruction_type;
 
+enum 
+{
+    BR_XY = 0,
+    BR_YX = 1,
+    TR_XY = 2,
+    TR_YX = 3,
+    TL_XY = 4,
+    TL_YX = 5,
+    BL_XY = 6,
+    BL_YX = 7
+};
+
 typedef struct {
     instruction_type type;
     int argument; // Used by translateX,Y and rotateCW
@@ -473,17 +485,136 @@ void implementation_driver(
 
     int LAMBDA = width - 1;
 
-    int buffer_b_is_dest = 1;
-    // this is temporary, for debugging the different transformation
-    unsigned char* frame_buffer_a = (unsigned char*) malloc(sizeof(unsigned char*) * width * height);
-    unsigned char* frame_buffer_b = (unsigned char*) malloc(sizeof(unsigned char*) * width * height);
-
-    // TODO remove
-    // copy frame buffer into_a
-    int limit = 3 * width * height;
-    for (int i = 0; i < limit; i++)
+    unsigned char* src_buffers[8];
+    for (int i = 0; i < 8; i++)
     {
-        frame_buffer_a[i] = frame_buffer[i];
+        src_buffers[i] = (unsigned char*) malloc(sizeof(unsigned char*) * width * height);
+    }
+
+    /*
+     * Set up src buffers
+     */
+
+    // BR_XY (no transformation)
+    unsigned char* temp_src_buffer = src_buffers[BR_XY];
+    for (int row = 0; row < width; ++row)
+    {
+        int row_offset = row * width;
+        for (int col = 0; col < width; ++col)
+        {
+            int base = 3 * (row_offset + col);
+            temp_src_buffer[base] = frame_buffer[base];
+            temp_src_buffer[base + 1] = frame_buffer[base + 1];
+            temp_src_buffer[base + 2] = frame_buffer[base + 2];
+        }
+    }
+
+    // BR_YX
+    temp_src_buffer = src_buffers[BR_YX];
+    for (int src_y = 0, dest_x = 0; src_y < width; ++src_y, ++dest_x)
+    {
+        int src_row_offset = src_y * width;
+        for (int src_x = 0, dest_y = 0; src_x < width; ++src_x, ++dest_y)
+        {
+            int src_base = 3 * (src_row_offset + src_x);
+            int dest_base = 3 * (dest_y * width + dest_x);
+            temp_src_buffer[dest_base] = frame_buffer[src_base];
+            temp_src_buffer[dest_base + 1] = frame_buffer[src_base + 1];
+            temp_src_buffer[dest_base + 2] = frame_buffer[src_base + 2];
+        }
+    }
+
+    // BL_XY
+    temp_src_buffer = src_buffers[BL_XY];
+    for (int src_y = 0, dest_y = 0; src_y < width; ++src_y, ++dest_y)
+    {
+        int src_row_offset = src_y * width;
+        int dest_row_offset = dest_y * width;
+        for (int src_x = 0, dest_x = LAMBDA; src_x < width; ++src_x, --dest_x)
+        {
+            int src_base = 3 * (src_row_offset + src_x);
+            int dest_base = 3 * (dest_row_offset + dest_x);
+            temp_src_buffer[dest_base] = frame_buffer[src_base];
+            temp_src_buffer[dest_base + 1] = frame_buffer[src_base + 1];
+            temp_src_buffer[dest_base + 2] = frame_buffer[src_base + 2];
+        }
+    }
+
+    // BL_YX
+    temp_src_buffer = src_buffers[BL_YX];
+    for (int src_y = 0, dest_x = LAMBDA; src_y < width; ++src_y, --dest_x)
+    {
+        int src_row_offset = src_y * width;
+        for (int src_x = 0, dest_y = 0; src_x < width; ++src_x, ++dest_y)
+        {
+            int src_base = 3 * (src_row_offset + src_x);
+            int dest_base = 3 * (dest_y * width + dest_x);
+            temp_src_buffer[dest_base] = frame_buffer[src_base];
+            temp_src_buffer[dest_base + 1] = frame_buffer[src_base + 1];
+            temp_src_buffer[dest_base + 2] = frame_buffer[src_base + 2];
+        }
+    }
+
+    // TR_XY
+    temp_src_buffer = src_buffers[TR_XY];
+    for (int src_y = 0, dest_y = LAMBDA; src_y < width; ++src_y, --dest_y)
+    {
+        int src_row_offset = src_y * width;
+        int dest_row_offset = dest_y * width;
+        for (int src_x = 0, dest_x = 0; src_x < width; ++src_x, ++dest_x)
+        {
+            int src_base = 3 * (src_row_offset + src_x);
+            int dest_base = 3 * (dest_row_offset + dest_x);
+            temp_src_buffer[dest_base] = frame_buffer[src_base];
+            temp_src_buffer[dest_base + 1] = frame_buffer[src_base + 1];
+            temp_src_buffer[dest_base + 2] = frame_buffer[src_base + 2];
+        }
+    }
+
+    // TR_YX
+    temp_src_buffer = src_buffers[TR_YX];
+    for (int src_y = 0, dest_x = 0; src_y < width; ++src_y, ++dest_x)
+    {
+        int src_row_offset = src_y * width;
+        for (int src_x = 0, dest_y = LAMBDA; src_x < width; ++src_x, --dest_y)
+        {
+            int src_base = 3 * (src_row_offset + src_x);
+            int dest_base = 3 * (dest_y * width + dest_x);
+            temp_src_buffer[dest_base] = frame_buffer[src_base];
+            temp_src_buffer[dest_base + 1] = frame_buffer[src_base + 1];
+            temp_src_buffer[dest_base + 2] = frame_buffer[src_base + 2];
+        }
+    }
+
+    // TL_XY
+    temp_src_buffer = src_buffers[TL_XY];
+    for (int src_y = 0, dest_y = LAMBDA; src_y < width; ++src_y, --dest_y)
+    {
+        int src_row_offset = src_y * width;
+        int dest_row_offset = dest_y * width;
+        for (int src_x = 0, dest_x = LAMBDA; src_x < width; ++src_x, --dest_x)
+        {
+            int src_base = 3 * (src_row_offset + src_x);
+            int dest_base = 3 * (dest_row_offset + dest_x);
+            temp_src_buffer[dest_base] = frame_buffer[src_base];
+            temp_src_buffer[dest_base + 1] = frame_buffer[src_base + 1];
+            temp_src_buffer[dest_base + 2] = frame_buffer[src_base + 2];
+        }
+    }
+
+    // TL_XY
+    temp_src_buffer = src_buffers[TL_YX];
+    for (int src_y = 0, dest_x = LAMBDA; src_y < width; ++src_y, --dest_x)
+    {
+        int src_row_offset = src_y * width;
+        for (int src_x = 0, dest_y = LAMBDA; src_x < width; ++src_x, --dest_y)
+        {
+            int src_base = 3 * (src_row_offset + src_x);
+            int dest_base = 3 * (dest_y * width + dest_x);
+            temp_src_buffer[dest_base] = frame_buffer[src_base];
+            temp_src_buffer[dest_base + 1] = frame_buffer[src_base + 1];
+            temp_src_buffer[dest_base + 2] = frame_buffer[src_base + 2];
+        }
     }
 
     int origin_x = 0, origin_y = 0;
@@ -570,11 +701,6 @@ void implementation_driver(
             }
         }
 
-        unsigned char* dest_buffer = buffer_b_is_dest ? frame_buffer_b : frame_buffer_a;
-
-        // TODO switch back
-        unsigned char* src_buffer = frame_buffer;
-
         // Write white space. TODO: do optimized mask
         for (int row = 0; row < height; row++)
         {
@@ -582,9 +708,9 @@ void implementation_driver(
             for (int col = 0; col < width; col++)
             {
                 int base = 3 * (row_start + col);
-                dest_buffer[base] = 0xff;
-                dest_buffer[base + 1] = 0xff;
-                dest_buffer[base + 2] = 0xff;
+                frame_buffer[base] = 0xff;
+                frame_buffer[base + 1] = 0xff;
+                frame_buffer[base + 2] = 0xff;
             }
         }
 
@@ -594,41 +720,106 @@ void implementation_driver(
         int unit_y_y_dir = unit_y_y - origin_y;
 
         // TODO determine which to run in a more optimized way
+        int buffer_type;
+        int src_buffer_offset_x;
+        int src_buffer_offset_y;
+        unsigned char* current_src_buffer;
+
         if (unit_x_x_dir > 0)
         {
             if (unit_y_y_dir > 0)
-                write_to_buffer_BR_x_y(src_buffer, dest_buffer, width, origin_x, origin_y);
+            {
+                buffer_type = BR_XY;
+                src_buffer_offset_y = origin_y;
+            }
             else
-                write_to_buffer_TR_x_y(src_buffer, dest_buffer, width, origin_x, origin_y);
+            {
+                buffer_type = TR_XY;
+                src_buffer_offset_y = origin_y - LAMBDA;
+            }
+
+            src_buffer_offset_x = origin_x;
         }
         else if (unit_x_x_dir < 0)
         {
             if (unit_y_y_dir > 0)
-                write_to_buffer_BL_x_y(src_buffer, dest_buffer, width, origin_x, origin_y);
+            {
+                buffer_type = BL_XY;
+                src_buffer_offset_y = origin_y;
+            }
             else
-                write_to_buffer_TL_x_y(src_buffer, dest_buffer, width, origin_x, origin_y);
+            {
+                buffer_type = TL_XY;
+                src_buffer_offset_y = origin_y - LAMBDA;
+            }
+
+            src_buffer_offset_x = origin_x - LAMBDA;
         }
         else if (unit_x_y_dir > 0)
         {
             if (unit_y_x_dir > 0)
-                write_to_buffer_BR_y_x(src_buffer, dest_buffer, width, origin_x, origin_y);
+            {
+                buffer_type = BR_YX;
+                src_buffer_offset_x = origin_x;
+            }
             else
-                write_to_buffer_BL_y_x(src_buffer, dest_buffer, width, origin_x, origin_y);
+            {
+                buffer_type = BL_YX;
+                src_buffer_offset_x = origin_x - LAMBDA;
+            }
+
+            src_buffer_offset_y = origin_y;                
         }
         else
         {
             if (unit_y_x_dir > 0)
-                write_to_buffer_TR_y_x(src_buffer, dest_buffer, width, origin_x, origin_y);
+            {
+                buffer_type = TR_YX;
+                src_buffer_offset_x = origin_x;
+            }
             else
-                write_to_buffer_TL_y_x(src_buffer, dest_buffer, width, origin_x, origin_y);
+            {
+                buffer_type = TL_YX;
+                src_buffer_offset_x = origin_x - LAMBDA;
+            }
+
+            src_buffer_offset_y = origin_y - LAMBDA;
         }
-        
-        verifyFrame(dest_buffer, width, height, grading_mode);
-        buffer_b_is_dest = !buffer_b_is_dest;
+
+        current_src_buffer = src_buffers[buffer_type];
+
+        #ifdef DEBUGGING
+            printf("buffer_type:%d, origin: (%d, %d), dest: (%d, %d)\n", buffer_type, origin_x, origin_y, src_buffer_offset_x, src_buffer_offset_y);
+        #endif
+
+        // TODO opt bounds
+        for (int dest_y = src_buffer_offset_y, src_y = 0; src_y < width; ++src_y, ++dest_y)
+        {
+            if (dest_y < 0 || dest_y >= width)
+                continue;
+
+            int dest_y_offset = dest_y * width;
+            int src_y_offset = src_y * width;
+
+            for (int dest_x = src_buffer_offset_x, src_x = 0; src_x < width; ++src_x, ++dest_x)
+            {
+                if (dest_x < 0 || dest_x >= width)
+                    continue;
+
+                int dest_offset = 3 * (dest_y_offset + dest_x);
+                int src_offset = 3 * (src_y_offset + src_x);
+                frame_buffer[dest_offset] = current_src_buffer[src_offset];
+                frame_buffer[dest_offset + 1] = current_src_buffer[src_offset + 1];
+                frame_buffer[dest_offset + 2] = current_src_buffer[src_offset + 2];
+            }
+        }
+        verifyFrame(frame_buffer, width, height, grading_mode);
     }
 
-    free(frame_buffer_a);
-    free(frame_buffer_b);
+    for (int i = 0; i < 8; i++) 
+    {
+        free(src_buffers[i]);
+    }
 
     return;
 }
