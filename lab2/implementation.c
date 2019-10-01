@@ -124,339 +124,159 @@ static inline int min(int a, int b)
     return a > b ? b : a;
 }
 
-void write_to_buffer_BR_x_y(
-    unsigned char* src_buffer,
-    unsigned char* dest_buffer,
-    int dim,
-    int origin_x, int origin_y)
+/*
+ *
+ * Cache setters
+ *
+ */
+void setupBufferBRXY(unsigned char* src_buffer, unsigned char** dest_buffer, int width)
 {
-    /*
-     * Calculate the read bounds of the source image.
-     */
-    int source_x_min = -3 * min(0, origin_x);
-    int source_y_min = -3 * min(0, origin_y);
-
-    int source_x_max = 3 * (dim - max(0, origin_x));
-    int source_y_max = 3 * (dim - max(0, origin_y));
-
-    #ifdef DEBUGGING
-    printf("br_x_y\n");
-    #endif
-
-    /*
-     * Calculate the write bounds for the dest image
-     */
-    int dest_x_min = 3 * max(0, origin_x);
-    int dest_y_min = 3 * max(0, origin_y);
-
-    for (int src_y = source_y_min, dest_y = dest_y_min; src_y < source_y_max; src_y += 3, dest_y += 3)
+    unsigned char* temp_dest_buffer = (unsigned char*) malloc(sizeof(unsigned char) * 3 * width * width);
+    for (int row = 0; row < width; ++row)
     {
-        int src_y_offset = src_y * dim;
-        int dest_y_offset = dest_y * dim;
-        for (int src_x = source_x_min, dest_x = dest_x_min; src_x < source_x_max; src_x += 3, dest_x += 3)
+        int row_offset = row * width;
+        for (int col = 0; col < width; ++col)
         {
-            int src_offset = src_y_offset + src_x;
-            int dest_offset = dest_y_offset + dest_x;
-
-            dest_buffer[dest_offset] = src_buffer[src_offset];
-            dest_buffer[dest_offset + 1] = src_buffer[src_offset + 1];
-            dest_buffer[dest_offset + 2] = src_buffer[src_offset + 2];
+            int base = 3 * (row_offset + col);
+            temp_dest_buffer[base] = src_buffer[base];
+            temp_dest_buffer[base + 1] = src_buffer[base + 1];
+            temp_dest_buffer[base + 2] = src_buffer[base + 2];
         }
     }
+    *dest_buffer = temp_dest_buffer;
 }
 
-void write_to_buffer_BR_y_x(
-    unsigned char* src_buffer,
-    unsigned char* dest_buffer,
-    int dim,
-    int origin_x, int origin_y)
+void setupBufferBRYX(unsigned char* src_buffer, unsigned char** dest_buffer, int width)
 {
-    /*
-     * Calculate the read bounds of the source image.
-     */
-    int source_x_min = min(0, origin_y) * -3;
-    int source_y_min = min(0, origin_x) * -3;
-
-    int source_x_max = 3 * (dim - max(0, origin_y));
-    int source_y_max = 3 * (dim - max(0, origin_x));
-
-    #ifdef DEBUGGING
-    printf("br_y_x\n");
-    #endif
-
-    /*
-     * Calculate the write bounds for the dest image
-     */
-    int dest_x_min = 3 * max(0, origin_x);
-    int dest_y_min = 3 * max(0, origin_y);
-
-    for (int src_y = source_y_min, dest_x = dest_x_min; src_y < source_y_max; src_y += 3, dest_x += 3)
+    unsigned char* temp_dest_buffer = (unsigned char*) malloc(sizeof(unsigned char) * 3 * width * width);
+    for (int src_y = 0, dest_x = 0; src_y < width; ++src_y, ++dest_x)
     {
-        int src_y_offset = src_y * dim;
-        for (int src_x = source_x_min, dest_y = dest_y_min; src_x < source_x_max; src_x += 3, dest_y += 3)
+        int src_row_offset = src_y * width;
+        for (int src_x = 0, dest_y = 0; src_x < width; ++src_x, ++dest_y)
         {
-            int src_offset = src_y_offset + src_x;
-            int dest_offset = dim * dest_y + dest_x;
-
-            dest_buffer[dest_offset] = src_buffer[src_offset];
-            dest_buffer[dest_offset + 1] = src_buffer[src_offset + 1];
-            dest_buffer[dest_offset + 2] = src_buffer[src_offset + 2];
+            int src_base = 3 * (src_row_offset + src_x);
+            int dest_base = 3 * (dest_y * width + dest_x);
+            temp_dest_buffer[dest_base] = src_buffer[src_base];
+            temp_dest_buffer[dest_base + 1] = src_buffer[src_base + 1];
+            temp_dest_buffer[dest_base + 2] = src_buffer[src_base + 2];
         }
     }
+    *dest_buffer = temp_dest_buffer;
 }
 
-void write_to_buffer_BL_y_x(
-    unsigned char* src_buffer,
-    unsigned char* dest_buffer,
-    int dim,
-    int origin_x, int origin_y)
+void setupBufferBLXY(unsigned char* src_buffer, unsigned char** dest_buffer, int width)
 {
-    int dim_inclusive = dim - 1;
-
-    /*
-     * Calculate the read bounds of the source image.
-     */
-    int source_x_min = min(0, origin_y) * -3;
-    int source_y_min = 3 * max(0, origin_x - dim_inclusive);
-
-    int source_x_max = 3 * (dim - max(0, origin_y));
-    int source_y_max = 3 * (dim - max(0, dim - origin_x));
-
-    #ifdef DEBUGGING
-    printf("bl_y_x\n");
-    #endif
-
-    /*
-     * Calculate the write bounds for the dest image
-     */
-    int dest_x_start = 3 * min(dim_inclusive, origin_x);
-    int dest_y_start = 3 * max(0, origin_y);
-
-    for (int src_y = source_y_min, dest_x = dest_x_start; src_y < source_y_max; src_y += 3, dest_x -= 3)
+    int LAMBDA = width - 1;
+    unsigned char* temp_dest_buffer = (unsigned char*) malloc(sizeof(unsigned char) * 3 * width * width);
+    for (int src_y = 0, dest_y = 0; src_y < width; ++src_y, ++dest_y)
     {
-        int src_y_offset = src_y * dim;
-        for (int src_x = source_x_min, dest_y = dest_y_start; src_x < source_x_max; src_x += 3, dest_y += 3)
+        int src_row_offset = src_y * width;
+        int dest_row_offset = dest_y * width;
+        for (int src_x = 0, dest_x = LAMBDA; src_x < width; ++src_x, --dest_x)
         {
-            int src_offset = src_y_offset + src_x;
-            int dest_offset = dim * dest_y + dest_x;
-
-            dest_buffer[dest_offset] = src_buffer[src_offset];
-            dest_buffer[dest_offset + 1] = src_buffer[src_offset + 1];
-            dest_buffer[dest_offset + 2] = src_buffer[src_offset + 2];
+            int src_base = 3 * (src_row_offset + src_x);
+            int dest_base = 3 * (dest_row_offset + dest_x);
+            temp_dest_buffer[dest_base] = src_buffer[src_base];
+            temp_dest_buffer[dest_base + 1] = src_buffer[src_base + 1];
+            temp_dest_buffer[dest_base + 2] = src_buffer[src_base + 2];
         }
     }
+    *dest_buffer = temp_dest_buffer;
 }
 
-void write_to_buffer_BL_x_y(
-    unsigned char* src_buffer,
-    unsigned char* dest_buffer,
-    int dim,
-    int origin_x, int origin_y)
+void setupBufferBLYX(unsigned char* src_buffer, unsigned char** dest_buffer, int width)
 {
-    int dim_inclusive = dim - 1;
-
-    /*
-     * Calculate the read bounds of the source image.
-     */
-    int source_x_min = max(0, 3 * (origin_x - dim_inclusive));
-    int source_y_min = max(0, -3 * origin_y);
-
-    int source_x_max = 3 * (dim - max(0, dim - origin_x));
-    int source_y_max = 3 * (dim - max(0, origin_y));
-
-    #ifdef DEBUGGING
-    printf("bl_x_y\n");
-    #endif
-
-    /*
-     * Calculate the write bounds for the dest image
-     */
-    int dest_x_start = 3 * min(dim_inclusive, origin_x);
-    int dest_y_start = max(0, 3 * origin_y);
-
-    for (int src_y = source_y_min, dest_y = dest_y_start; src_y < source_y_max; src_y += 3, dest_y += 3)
+    unsigned char* temp_dest_buffer = (unsigned char*) malloc(sizeof(unsigned char) * 3 * width * width);
+    for (int src_y = 0, dest_x = width - 1; src_y < width; ++src_y, --dest_x)
     {
-        int src_y_offset = src_y * dim;
-        int dest_y_offset = dest_y * dim;
-        for (int src_x = source_x_min, dest_x = dest_x_start; src_x < source_x_max; src_x += 3, dest_x -= 3)
+        int src_row_offset = src_y * width;
+        for (int src_x = 0, dest_y = 0; src_x < width; ++src_x, ++dest_y)
         {
-            int src_offset = src_y_offset + src_x;
-            int dest_offset = dest_y_offset + dest_x;
-
-            dest_buffer[dest_offset] = src_buffer[src_offset];
-            dest_buffer[dest_offset + 1] = src_buffer[src_offset + 1];
-            dest_buffer[dest_offset + 2] = src_buffer[src_offset + 2];
+            int src_base = 3 * (src_row_offset + src_x);
+            int dest_base = 3 * (dest_y * width + dest_x);
+            temp_dest_buffer[dest_base] = src_buffer[src_base];
+            temp_dest_buffer[dest_base + 1] = src_buffer[src_base + 1];
+            temp_dest_buffer[dest_base + 2] = src_buffer[src_base + 2];
         }
     }
+    *dest_buffer = temp_dest_buffer;
 }
 
-void write_to_buffer_TR_y_x(
-    unsigned char* src_buffer,
-    unsigned char* dest_buffer,
-    int dim,
-    int origin_x, int origin_y)
+void setupBufferTRXY(unsigned char* src_buffer, unsigned char** dest_buffer, int width)
 {
-    int dim_inclusive = dim - 1;
-
-    /*
-     * Calculate the read bounds of the source image.
-     */
-    int source_x_min = 3 * max((origin_y - dim_inclusive), 0);
-    int source_y_min = -3 * min(0, origin_x);
-
-    int source_x_max = 3 * min(origin_y, dim);
-    int source_y_max = 3 * (dim - max(0, origin_x));
-
-    #ifdef DEBUGGING
-    printf("tr_y_x\n");
-    #endif
-
-    /*
-     * Calculate the write bounds for the dest image
-     */
-    int dest_x_start = max(0, 3 * origin_x);
-    int dest_y_start = 3 * min(origin_y, dim_inclusive);
-
-    for (int src_y = source_y_min, dest_x = dest_x_start; src_y < source_y_max; src_y += 3, dest_x += 3)
+    unsigned char* temp_dest_buffer = (unsigned char*) malloc(sizeof(unsigned char) * 3 * width * width);
+    for (int src_y = 0, dest_y = width - 1; src_y < width; ++src_y, --dest_y)
     {
-        int src_y_offset = src_y * dim;
-        for (int src_x = source_x_min, dest_y = dest_y_start; src_x < source_x_max; src_x += 3, dest_y -= 3)
+        int src_row_offset = src_y * width;
+        int dest_row_offset = dest_y * width;
+        for (int src_x = 0, dest_x = 0; src_x < width; ++src_x, ++dest_x)
         {
-            int src_offset = src_y_offset + src_x;
-            int dest_offset = dest_y * dim + dest_x;
-
-            dest_buffer[dest_offset] = src_buffer[src_offset];
-            dest_buffer[dest_offset + 1] = src_buffer[src_offset + 1];
-            dest_buffer[dest_offset + 2] = src_buffer[src_offset + 2];
+            int src_base = 3 * (src_row_offset + src_x);
+            int dest_base = 3 * (dest_row_offset + dest_x);
+            temp_dest_buffer[dest_base] = src_buffer[src_base];
+            temp_dest_buffer[dest_base + 1] = src_buffer[src_base + 1];
+            temp_dest_buffer[dest_base + 2] = src_buffer[src_base + 2];
         }
     }
+    *dest_buffer = temp_dest_buffer;
 }
 
-void write_to_buffer_TR_x_y(
-    unsigned char* src_buffer,
-    unsigned char* dest_buffer,
-    int dim,
-    int origin_x, int origin_y)
+void setupBufferTRYX(unsigned char* src_buffer, unsigned char** dest_buffer, int width)
 {
-    int dim_inclusive = dim - 1;
-    /*
-     * Calculate the read bounds of the source image.
-     */
-    int source_x_min = -3 * min(0, origin_x);
-    int source_y_min = max(3 * (origin_y - dim_inclusive), 0);
-
-    int source_x_max = 3 * (dim - max(0, origin_x));
-    int source_y_max = 3 * min(origin_y, dim);
-
-    #ifdef DEBUGGING
-    printf("tr_x_y\n");
-    #endif
-
-    /*
-     * Calculate the write bounds for the dest image
-     */
-    int dest_x_start = max(0, 3 * origin_x);
-    int dest_y_start = 3 * min(dim_inclusive, origin_y);
-
-    for (int src_y = source_y_min, dest_y = dest_y_start; src_y < source_y_max; src_y += 3, dest_y -= 3)
+    int LAMBDA = width - 1;
+    unsigned char* temp_dest_buffer = (unsigned char*) malloc(sizeof(unsigned char) * 3 * width * width);
+    for (int src_y = 0, dest_x = 0; src_y < width; ++src_y, ++dest_x)
     {
-        int src_y_offset = src_y * dim;
-        int dest_y_offset = dest_y * dim;
-        for (int src_x = source_x_min, dest_x = dest_x_start; src_x < source_x_max; src_x += 3, dest_x += 3)
+        int src_row_offset = src_y * width;
+        for (int src_x = 0, dest_y = LAMBDA; src_x < width; ++src_x, --dest_y)
         {
-            int src_offset = src_y_offset + src_x;
-            int dest_offset = dest_y_offset + dest_x;
-
-            dest_buffer[dest_offset] = src_buffer[src_offset];
-            dest_buffer[dest_offset + 1] = src_buffer[src_offset + 1];
-            dest_buffer[dest_offset + 2] = src_buffer[src_offset + 2];
+            int src_base = 3 * (src_row_offset + src_x);
+            int dest_base = 3 * (dest_y * width + dest_x);
+            temp_dest_buffer[dest_base] = src_buffer[src_base];
+            temp_dest_buffer[dest_base + 1] = src_buffer[src_base + 1];
+            temp_dest_buffer[dest_base + 2] = src_buffer[src_base + 2];
         }
     }
+    *dest_buffer = temp_dest_buffer;
 }
 
-void write_to_buffer_TL_y_x(
-    unsigned char* src_buffer,
-    unsigned char* dest_buffer,
-    int dim,
-    int origin_x, int origin_y)
+void setupBufferTLXY(unsigned char* src_buffer, unsigned char** dest_buffer, int width)
 {
-    int dim_inclusive = dim - 1;
-
-    /*
-     * Calculate the read bounds of the source image.
-     */
-    int source_x_min = max(0, 3 * (origin_y - dim_inclusive));
-    int source_y_min = max(0, 3 * (origin_x - dim_inclusive));
-
-    int source_x_max = 3 * min(dim, origin_y + 1);
-    int source_y_max = 3 * min(dim, origin_x + 1);
-
-    #ifdef DEBUGGING
-    printf("tl_y_x\n");
-    #endif
-
-    /*
-     * Calculate the write bounds for the dest image
-     */
-    int dest_x_start = 3 * min(dim_inclusive, origin_x);
-    int dest_y_start = 3 * min(dim_inclusive, origin_y);
-
-    for (int src_y = source_y_min, dest_x = dest_x_start; src_y < source_y_max; src_y += 3, dest_x -= 3)
+    int LAMBDA = width - 1;
+    unsigned char* temp_dest_buffer = (unsigned char*) malloc(sizeof(unsigned char) * 3 * width * width);
+    for (int src_y = 0, dest_y = LAMBDA; src_y < width; ++src_y, --dest_y)
     {
-        int src_y_offset = src_y * dim;
-        for (int src_x = source_x_min, dest_y = dest_y_start; src_x < source_x_max; src_x += 3, dest_y -= 3)
+        int src_row_offset = src_y * width;
+        int dest_row_offset = dest_y * width;
+        for (int src_x = 0, dest_x = LAMBDA; src_x < width; ++src_x, --dest_x)
         {
-            int src_offset = src_y_offset + src_x;
-            int dest_offset = dest_y * dim + dest_x;
-
-            dest_buffer[dest_offset] = src_buffer[src_offset];
-            dest_buffer[dest_offset + 1] = src_buffer[src_offset + 1];
-            dest_buffer[dest_offset + 2] = src_buffer[src_offset + 2];
+            int src_base = 3 * (src_row_offset + src_x);
+            int dest_base = 3 * (dest_row_offset + dest_x);
+            temp_dest_buffer[dest_base] = src_buffer[src_base];
+            temp_dest_buffer[dest_base + 1] = src_buffer[src_base + 1];
+            temp_dest_buffer[dest_base + 2] = src_buffer[src_base + 2];
         }
     }
-
+    *dest_buffer = temp_dest_buffer;
 }
 
-void write_to_buffer_TL_x_y(
-    unsigned char* src_buffer,
-    unsigned char* dest_buffer,
-    int dim,
-    int origin_x, int origin_y)
+void setupBufferTLYX(unsigned char* src_buffer, unsigned char** dest_buffer, int width)
 {
-    int dim_inclusive = dim - 1;
-    /*
-     * Calculate the read bounds of the source image.
-     */
-    int source_x_min = max(0, 3 * (origin_x - dim_inclusive));
-    int source_y_min = max(0, 3 * (origin_y - dim_inclusive));
-
-    int source_x_max = 3 * min(dim, origin_x + 1);
-    int source_y_max = 3 * min(dim, origin_y + 1);
-
-    #ifdef DEBUGGING
-    printf("tl_x_y\n");
-    #endif
-
-    /*
-     * Calculate the write bounds for the dest image
-     */
-    int dest_x_start = 3 * min(dim_inclusive, origin_x);
-    int dest_y_start = 3 * min(dim_inclusive, origin_y);
-
-    for (int src_y = source_y_min, dest_y = dest_y_start; src_y < source_y_max; src_y += 3, dest_y -= 3)
+    int LAMBDA = width - 1;
+    unsigned char* temp_dest_buffer = (unsigned char*) malloc(sizeof(unsigned char) * 3 * width * width);
+    for (int src_y = 0, dest_x = LAMBDA; src_y < width; ++src_y, --dest_x)
     {
-        int src_y_offset = src_y * dim;
-        int dest_y_offset = dest_y * dim;
-        for (int src_x = source_x_min, dest_x = dest_x_start; src_x < source_x_max; src_x += 3, dest_x -= 3)
+        int src_row_offset = src_y * width;
+        for (int src_x = 0, dest_y = LAMBDA; src_x < width; ++src_x, --dest_y)
         {
-            int src_offset = src_y_offset + src_x;
-            int dest_offset = dest_y_offset + dest_x;
-
-            dest_buffer[dest_offset] = src_buffer[src_offset];
-            dest_buffer[dest_offset + 1] = src_buffer[src_offset + 1];
-            dest_buffer[dest_offset + 2] = src_buffer[src_offset + 2];
+            int src_base = 3 * (src_row_offset + src_x);
+            int dest_base = 3 * (dest_y * width + dest_x);
+            temp_dest_buffer[dest_base] = src_buffer[src_base];
+            temp_dest_buffer[dest_base + 1] = src_buffer[src_base + 1];
+            temp_dest_buffer[dest_base + 2] = src_buffer[src_base + 2];
         }
     }
+    *dest_buffer = temp_dest_buffer;
 }
 
 /***********************************************************************************************************************
@@ -488,134 +308,11 @@ void implementation_driver(
     unsigned char* src_buffers[8];
     for (int i = 0; i < 8; i++)
     {
-        src_buffers[i] = (unsigned char*) malloc(sizeof(unsigned char*) * width * height);
+        // Buffers are null until they are initialized
+        src_buffers[i] = 0x0;
     }
 
-    /*
-     * Set up src buffers
-     */
-
-    // BR_XY (no transformation)
-    unsigned char* temp_src_buffer = src_buffers[BR_XY];
-    for (int row = 0; row < width; ++row)
-    {
-        int row_offset = row * width;
-        for (int col = 0; col < width; ++col)
-        {
-            int base = 3 * (row_offset + col);
-            temp_src_buffer[base] = frame_buffer[base];
-            temp_src_buffer[base + 1] = frame_buffer[base + 1];
-            temp_src_buffer[base + 2] = frame_buffer[base + 2];
-        }
-    }
-
-    // BR_YX
-    temp_src_buffer = src_buffers[BR_YX];
-    for (int src_y = 0, dest_x = 0; src_y < width; ++src_y, ++dest_x)
-    {
-        int src_row_offset = src_y * width;
-        for (int src_x = 0, dest_y = 0; src_x < width; ++src_x, ++dest_y)
-        {
-            int src_base = 3 * (src_row_offset + src_x);
-            int dest_base = 3 * (dest_y * width + dest_x);
-            temp_src_buffer[dest_base] = frame_buffer[src_base];
-            temp_src_buffer[dest_base + 1] = frame_buffer[src_base + 1];
-            temp_src_buffer[dest_base + 2] = frame_buffer[src_base + 2];
-        }
-    }
-
-    // BL_XY
-    temp_src_buffer = src_buffers[BL_XY];
-    for (int src_y = 0, dest_y = 0; src_y < width; ++src_y, ++dest_y)
-    {
-        int src_row_offset = src_y * width;
-        int dest_row_offset = dest_y * width;
-        for (int src_x = 0, dest_x = LAMBDA; src_x < width; ++src_x, --dest_x)
-        {
-            int src_base = 3 * (src_row_offset + src_x);
-            int dest_base = 3 * (dest_row_offset + dest_x);
-            temp_src_buffer[dest_base] = frame_buffer[src_base];
-            temp_src_buffer[dest_base + 1] = frame_buffer[src_base + 1];
-            temp_src_buffer[dest_base + 2] = frame_buffer[src_base + 2];
-        }
-    }
-
-    // BL_YX
-    temp_src_buffer = src_buffers[BL_YX];
-    for (int src_y = 0, dest_x = LAMBDA; src_y < width; ++src_y, --dest_x)
-    {
-        int src_row_offset = src_y * width;
-        for (int src_x = 0, dest_y = 0; src_x < width; ++src_x, ++dest_y)
-        {
-            int src_base = 3 * (src_row_offset + src_x);
-            int dest_base = 3 * (dest_y * width + dest_x);
-            temp_src_buffer[dest_base] = frame_buffer[src_base];
-            temp_src_buffer[dest_base + 1] = frame_buffer[src_base + 1];
-            temp_src_buffer[dest_base + 2] = frame_buffer[src_base + 2];
-        }
-    }
-
-    // TR_XY
-    temp_src_buffer = src_buffers[TR_XY];
-    for (int src_y = 0, dest_y = LAMBDA; src_y < width; ++src_y, --dest_y)
-    {
-        int src_row_offset = src_y * width;
-        int dest_row_offset = dest_y * width;
-        for (int src_x = 0, dest_x = 0; src_x < width; ++src_x, ++dest_x)
-        {
-            int src_base = 3 * (src_row_offset + src_x);
-            int dest_base = 3 * (dest_row_offset + dest_x);
-            temp_src_buffer[dest_base] = frame_buffer[src_base];
-            temp_src_buffer[dest_base + 1] = frame_buffer[src_base + 1];
-            temp_src_buffer[dest_base + 2] = frame_buffer[src_base + 2];
-        }
-    }
-
-    // TR_YX
-    temp_src_buffer = src_buffers[TR_YX];
-    for (int src_y = 0, dest_x = 0; src_y < width; ++src_y, ++dest_x)
-    {
-        int src_row_offset = src_y * width;
-        for (int src_x = 0, dest_y = LAMBDA; src_x < width; ++src_x, --dest_y)
-        {
-            int src_base = 3 * (src_row_offset + src_x);
-            int dest_base = 3 * (dest_y * width + dest_x);
-            temp_src_buffer[dest_base] = frame_buffer[src_base];
-            temp_src_buffer[dest_base + 1] = frame_buffer[src_base + 1];
-            temp_src_buffer[dest_base + 2] = frame_buffer[src_base + 2];
-        }
-    }
-
-    // TL_XY
-    temp_src_buffer = src_buffers[TL_XY];
-    for (int src_y = 0, dest_y = LAMBDA; src_y < width; ++src_y, --dest_y)
-    {
-        int src_row_offset = src_y * width;
-        int dest_row_offset = dest_y * width;
-        for (int src_x = 0, dest_x = LAMBDA; src_x < width; ++src_x, --dest_x)
-        {
-            int src_base = 3 * (src_row_offset + src_x);
-            int dest_base = 3 * (dest_row_offset + dest_x);
-            temp_src_buffer[dest_base] = frame_buffer[src_base];
-            temp_src_buffer[dest_base + 1] = frame_buffer[src_base + 1];
-            temp_src_buffer[dest_base + 2] = frame_buffer[src_base + 2];
-        }
-    }
-
-    // TL_XY
-    temp_src_buffer = src_buffers[TL_YX];
-    for (int src_y = 0, dest_x = LAMBDA; src_y < width; ++src_y, --dest_x)
-    {
-        int src_row_offset = src_y * width;
-        for (int src_x = 0, dest_y = LAMBDA; src_x < width; ++src_x, --dest_y)
-        {
-            int src_base = 3 * (src_row_offset + src_x);
-            int dest_base = 3 * (dest_y * width + dest_x);
-            temp_src_buffer[dest_base] = frame_buffer[src_base];
-            temp_src_buffer[dest_base + 1] = frame_buffer[src_base + 1];
-            temp_src_buffer[dest_base + 2] = frame_buffer[src_base + 2];
-        }
-    }
+    unsigned char* dest_buffer = (unsigned char*) malloc(sizeof(unsigned char*) * width * height);
 
     int origin_x = 0, origin_y = 0;
     int unit_x_x = 1, unit_x_y = 0;
@@ -708,9 +405,9 @@ void implementation_driver(
             for (int col = 0; col < width; col++)
             {
                 int base = 3 * (row_start + col);
-                frame_buffer[base] = 0xff;
-                frame_buffer[base + 1] = 0xff;
-                frame_buffer[base + 2] = 0xff;
+                dest_buffer[base] = 0xff;
+                dest_buffer[base + 1] = 0xff;
+                dest_buffer[base + 2] = 0xff;
             }
         }
 
@@ -720,21 +417,31 @@ void implementation_driver(
         int unit_y_y_dir = unit_y_y - origin_y;
 
         // TODO determine which to run in a more optimized way
-        int buffer_type;
         int src_buffer_offset_x;
         int src_buffer_offset_y;
         unsigned char* current_src_buffer;
+
+        #ifdef DEBUGGING
+            printf("%d %d %d %d\n", unit_x_x_dir, unit_x_y_dir, unit_y_x_dir, unit_y_y_dir);
+        #endif
 
         if (unit_x_x_dir > 0)
         {
             if (unit_y_y_dir > 0)
             {
-                buffer_type = BR_XY;
+                if (!src_buffers[BR_XY])
+                    // TODO remove
+                    setupBufferBRXY(frame_buffer, &src_buffers[BR_XY], width);
+                
+                current_src_buffer = src_buffers[BR_XY];                
                 src_buffer_offset_y = origin_y;
             }
             else
             {
-                buffer_type = TR_XY;
+                if (!src_buffers[TR_XY])
+                    setupBufferTRXY(frame_buffer, &src_buffers[TR_XY], width);
+
+                current_src_buffer = src_buffers[TR_XY];
                 src_buffer_offset_y = origin_y - LAMBDA;
             }
 
@@ -744,12 +451,18 @@ void implementation_driver(
         {
             if (unit_y_y_dir > 0)
             {
-                buffer_type = BL_XY;
+                if (!src_buffers[BL_XY])
+                    setupBufferBLXY(frame_buffer, &src_buffers[BL_XY], width);
+
+                current_src_buffer = src_buffers[BL_XY];
                 src_buffer_offset_y = origin_y;
             }
             else
             {
-                buffer_type = TL_XY;
+                if (!src_buffers[TL_XY])
+                    setupBufferTLXY(frame_buffer, &src_buffers[TL_XY], width);
+
+                current_src_buffer = src_buffers[TL_XY];
                 src_buffer_offset_y = origin_y - LAMBDA;
             }
 
@@ -759,12 +472,18 @@ void implementation_driver(
         {
             if (unit_y_x_dir > 0)
             {
-                buffer_type = BR_YX;
+                if (!src_buffers[BR_YX])
+                    setupBufferBRYX(frame_buffer, &src_buffers[BR_YX], width);
+
+                current_src_buffer = src_buffers[BR_YX];
                 src_buffer_offset_x = origin_x;
             }
             else
             {
-                buffer_type = BL_YX;
+                if (!src_buffers[BL_YX])
+                    setupBufferBLYX(frame_buffer, &src_buffers[BL_YX], width);
+
+                current_src_buffer = src_buffers[BL_YX];
                 src_buffer_offset_x = origin_x - LAMBDA;
             }
 
@@ -774,25 +493,29 @@ void implementation_driver(
         {
             if (unit_y_x_dir > 0)
             {
-                buffer_type = TR_YX;
+                if (!src_buffers[TR_YX])
+                    setupBufferTRYX(frame_buffer, &src_buffers[TR_YX], width);
+
+                current_src_buffer = src_buffers[TR_YX];
                 src_buffer_offset_x = origin_x;
             }
             else
             {
-                buffer_type = TL_YX;
+                if (!src_buffers[TL_YX])
+                    setupBufferTLYX(frame_buffer, &src_buffers[TL_YX], width);
+
+                current_src_buffer = src_buffers[TL_YX];                
                 src_buffer_offset_x = origin_x - LAMBDA;
             }
 
             src_buffer_offset_y = origin_y - LAMBDA;
         }
 
-        current_src_buffer = src_buffers[buffer_type];
-
         #ifdef DEBUGGING
-            printf("buffer_type:%d, origin: (%d, %d), dest: (%d, %d)\n", buffer_type, origin_x, origin_y, src_buffer_offset_x, src_buffer_offset_y);
+            printf("origin: (%d, %d), dest: (%d, %d)\n", origin_x, origin_y, src_buffer_offset_x, src_buffer_offset_y);
         #endif
 
-        // TODO opt bounds
+        // TODO optimize bounds
         for (int dest_y = src_buffer_offset_y, src_y = 0; src_y < width; ++src_y, ++dest_y)
         {
             if (dest_y < 0 || dest_y >= width)
@@ -808,13 +531,17 @@ void implementation_driver(
 
                 int dest_offset = 3 * (dest_y_offset + dest_x);
                 int src_offset = 3 * (src_y_offset + src_x);
-                frame_buffer[dest_offset] = current_src_buffer[src_offset];
-                frame_buffer[dest_offset + 1] = current_src_buffer[src_offset + 1];
-                frame_buffer[dest_offset + 2] = current_src_buffer[src_offset + 2];
+                dest_buffer[dest_offset] = current_src_buffer[src_offset];
+                dest_buffer[dest_offset + 1] = current_src_buffer[src_offset + 1];
+                dest_buffer[dest_offset + 2] = current_src_buffer[src_offset + 2];
             }
         }
-        verifyFrame(frame_buffer, width, height, grading_mode);
+        verifyFrame(dest_buffer, width, height, grading_mode);
     }
+
+    #ifdef DEBUGGING
+        printf("Done!\n");
+    #endif
 
     for (int i = 0; i < 8; i++) 
     {
@@ -823,3 +550,4 @@ void implementation_driver(
 
     return;
 }
+ 
