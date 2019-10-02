@@ -176,17 +176,17 @@ void compress_buffer(unsigned char* src_buffer, dense_buffer_t** dest_buffer, in
                 continue;
             }
 
-            unsigned char last_r = src_buffer[src_offset];
-            unsigned char last_g = src_buffer[src_offset + 1];
-            unsigned char last_b = src_buffer[src_offset + 2];
+            register unsigned char last_r = src_buffer[src_offset];
+            register unsigned char last_g = src_buffer[src_offset + 1];
+            register unsigned char last_b = src_buffer[src_offset + 2];
 
             // Seek until the we reach the end of the row or a different coloured pixel
             int seek_offset = 1;
-            int seek_offset_bytes = 3;
+            int seek_offset_bytes = 3 + src_offset;
             while (curr_col + seek_offset < width 
-                && src_buffer[src_offset + seek_offset_bytes] == last_r 
-                && src_buffer[src_offset + seek_offset_bytes + 1] == last_g
-                && src_buffer[src_offset + seek_offset_bytes + 2] == last_b)
+                && src_buffer[seek_offset_bytes] == last_r 
+                && src_buffer[seek_offset_bytes + 1] == last_g
+                && src_buffer[seek_offset_bytes + 2] == last_b)
             {
                 seek_offset++;
                 seek_offset_bytes += 3;
@@ -224,17 +224,17 @@ void compress_buffer(unsigned char* src_buffer, dense_buffer_t** dest_buffer, in
             // We are at the beginning of a non-white pixel.
             temp_dest_buffer[write_index].x = curr_col;
             temp_dest_buffer[write_index].y = row;
-            temp_dest_buffer[write_index].r = src_buffer[src_offset];
-            temp_dest_buffer[write_index].g = src_buffer[src_offset + 1];
-            temp_dest_buffer[write_index].b = src_buffer[src_offset + 2];
+            register unsigned char curr_r = temp_dest_buffer[write_index].r = src_buffer[src_offset];
+            register unsigned char curr_g = temp_dest_buffer[write_index].g = src_buffer[src_offset + 1];
+            register unsigned char curr_b = temp_dest_buffer[write_index].b = src_buffer[src_offset + 2];
 
             // Seek until the we reach the end of the row or a different coloured pixel
             int seek_offset = 1;
-            int seek_offset_bytes = 3;
+            int seek_offset_bytes = 3 + src_offset;
             while (curr_col + seek_offset < width 
-                && src_buffer[src_offset + seek_offset_bytes] == temp_dest_buffer[write_index].r 
-                && src_buffer[src_offset + seek_offset_bytes + 1] == temp_dest_buffer[write_index].g
-                && src_buffer[src_offset + seek_offset_bytes + 2] == temp_dest_buffer[write_index].b)
+                && src_buffer[seek_offset_bytes] == curr_r 
+                && src_buffer[seek_offset_bytes + 1] == curr_g
+                && src_buffer[seek_offset_bytes + 2] == curr_b)
             {
                 seek_offset++;
                 seek_offset_bytes += 3;
