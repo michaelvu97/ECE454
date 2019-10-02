@@ -251,9 +251,8 @@ static inline void setupBufferBRXY(unsigned char* src_buffer, dense_buffer_t** d
     compress_buffer(src_buffer, dest_buffer, width);
 }
 
-void setupBufferBRYX(unsigned char* src_buffer, dense_buffer_t** dest_buffer, int width)
+void setupBufferBRYX(unsigned char* src_buffer, unsigned char* temp_dest_buffer,dense_buffer_t** dest_buffer, int width)
 {
-    unsigned char* temp_dest_buffer = (unsigned char*) malloc(sizeof(unsigned char) * 3 * width * width);
     for (int src_y = 0, dest_x = 0; src_y < width; ++src_y, ++dest_x)
     {
         int src_row_offset = src_y * width;
@@ -267,13 +266,11 @@ void setupBufferBRYX(unsigned char* src_buffer, dense_buffer_t** dest_buffer, in
         }
     }
     compress_buffer(temp_dest_buffer, dest_buffer, width);
-    free(temp_dest_buffer);
 }
 
-void setupBufferBLXY(unsigned char* src_buffer, dense_buffer_t** dest_buffer, int width)
+void setupBufferBLXY(unsigned char* src_buffer, unsigned char* temp_dest_buffer, dense_buffer_t** dest_buffer, int width)
 {
     int LAMBDA = width - 1;
-    unsigned char* temp_dest_buffer = (unsigned char*) malloc(sizeof(unsigned char) * 3 * width * width);
     for (int src_y = 0, dest_y = 0; src_y < width; ++src_y, ++dest_y)
     {
         int src_row_offset = src_y * width;
@@ -288,12 +285,10 @@ void setupBufferBLXY(unsigned char* src_buffer, dense_buffer_t** dest_buffer, in
         }
     }
     compress_buffer(temp_dest_buffer, dest_buffer, width);
-    free(temp_dest_buffer);
 }
 
-void setupBufferBLYX(unsigned char* src_buffer, dense_buffer_t** dest_buffer, int width)
+void setupBufferBLYX(unsigned char* src_buffer, unsigned char* temp_dest_buffer, dense_buffer_t** dest_buffer, int width)
 {
-    unsigned char* temp_dest_buffer = (unsigned char*) malloc(sizeof(unsigned char) * 3 * width * width);
     for (int src_y = 0, dest_x = width - 1; src_y < width; ++src_y, --dest_x)
     {
         int src_row_offset = src_y * width;
@@ -307,12 +302,10 @@ void setupBufferBLYX(unsigned char* src_buffer, dense_buffer_t** dest_buffer, in
         }
     }
     compress_buffer(temp_dest_buffer, dest_buffer, width);
-    free(temp_dest_buffer);
 }
 
-void setupBufferTRXY(unsigned char* src_buffer, dense_buffer_t** dest_buffer, int width)
+void setupBufferTRXY(unsigned char* src_buffer, unsigned char* temp_dest_buffer, dense_buffer_t** dest_buffer, int width)
 {
-    unsigned char* temp_dest_buffer = (unsigned char*) malloc(sizeof(unsigned char) * 3 * width * width);
     for (int src_y = 0, dest_y = width - 1; src_y < width; ++src_y, --dest_y)
     {
         int src_row_offset = src_y * width;
@@ -327,13 +320,11 @@ void setupBufferTRXY(unsigned char* src_buffer, dense_buffer_t** dest_buffer, in
         }
     }
     compress_buffer(temp_dest_buffer, dest_buffer, width);
-    free(temp_dest_buffer);
 }
 
-void setupBufferTRYX(unsigned char* src_buffer, dense_buffer_t** dest_buffer, int width)
+void setupBufferTRYX(unsigned char* src_buffer, unsigned char* temp_dest_buffer, dense_buffer_t** dest_buffer, int width)
 {
     int LAMBDA = width - 1;
-    unsigned char* temp_dest_buffer = (unsigned char*) malloc(sizeof(unsigned char) * 3 * width * width);
     for (int src_y = 0, dest_x = 0; src_y < width; ++src_y, ++dest_x)
     {
         int src_row_offset = src_y * width;
@@ -347,13 +338,11 @@ void setupBufferTRYX(unsigned char* src_buffer, dense_buffer_t** dest_buffer, in
         }
     }
     compress_buffer(temp_dest_buffer, dest_buffer, width);
-    free(temp_dest_buffer);
 }
 
-void setupBufferTLXY(unsigned char* src_buffer, dense_buffer_t** dest_buffer, int width)
+void setupBufferTLXY(unsigned char* src_buffer, unsigned char* temp_dest_buffer, dense_buffer_t** dest_buffer, int width)
 {
     int LAMBDA = width - 1;
-    unsigned char* temp_dest_buffer = (unsigned char*) malloc(sizeof(unsigned char) * 3 * width * width);
     for (int src_y = 0, dest_y = LAMBDA; src_y < width; ++src_y, --dest_y)
     {
         int src_row_offset = src_y * width;
@@ -368,13 +357,11 @@ void setupBufferTLXY(unsigned char* src_buffer, dense_buffer_t** dest_buffer, in
         }
     }
     compress_buffer(temp_dest_buffer, dest_buffer, width);
-    free(temp_dest_buffer);
 }
 
-void setupBufferTLYX(unsigned char* src_buffer, dense_buffer_t** dest_buffer, int width)
+void setupBufferTLYX(unsigned char* src_buffer, unsigned char* temp_dest_buffer, dense_buffer_t** dest_buffer, int width)
 {
     int LAMBDA = width - 1;
-    unsigned char* temp_dest_buffer = (unsigned char*) malloc(sizeof(unsigned char) * 3 * width * width);
     for (int src_y = 0, dest_x = LAMBDA; src_y < width; ++src_y, --dest_x)
     {
         int src_row_offset = src_y * width;
@@ -388,7 +375,6 @@ void setupBufferTLYX(unsigned char* src_buffer, dense_buffer_t** dest_buffer, in
         }
     }
     compress_buffer(temp_dest_buffer, dest_buffer, width);
-    free(temp_dest_buffer);
 }
 
 /***********************************************************************************************************************
@@ -425,6 +411,9 @@ void implementation_driver(
     }
 
     unsigned char* dest_buffer = (unsigned char*) malloc(sizeof(unsigned char*) * width * height);
+
+    // Used for building the rotated buffers.
+    unsigned char* temp_buffer = (unsigned char*) malloc(sizeof(unsigned char*) * width * height);
 
     int origin_x = 0, origin_y = 0;
     int unit_x_x = 1, unit_x_y = 0;
@@ -550,7 +539,7 @@ void implementation_driver(
             else
             {
                 if (!src_buffers[TR_XY])
-                    setupBufferTRXY(frame_buffer, &src_buffers[TR_XY], width);
+                    setupBufferTRXY(frame_buffer, temp_buffer, &src_buffers[TR_XY], width);
 
                 current_src_buffer = src_buffers[TR_XY];
                 src_buffer_offset_y = origin_y - LAMBDA;
@@ -563,7 +552,7 @@ void implementation_driver(
             if (unit_y_y_dir > 0)
             {
                 if (!src_buffers[BL_XY])
-                    setupBufferBLXY(frame_buffer, &src_buffers[BL_XY], width);
+                    setupBufferBLXY(frame_buffer, temp_buffer, &src_buffers[BL_XY], width);
 
                 current_src_buffer = src_buffers[BL_XY];
                 src_buffer_offset_y = origin_y;
@@ -571,7 +560,7 @@ void implementation_driver(
             else
             {
                 if (!src_buffers[TL_XY])
-                    setupBufferTLXY(frame_buffer, &src_buffers[TL_XY], width);
+                    setupBufferTLXY(frame_buffer, temp_buffer, &src_buffers[TL_XY], width);
 
                 current_src_buffer = src_buffers[TL_XY];
                 src_buffer_offset_y = origin_y - LAMBDA;
@@ -584,7 +573,7 @@ void implementation_driver(
             if (unit_y_x_dir > 0)
             {
                 if (!src_buffers[BR_YX])
-                    setupBufferBRYX(frame_buffer, &src_buffers[BR_YX], width);
+                    setupBufferBRYX(frame_buffer, temp_buffer, &src_buffers[BR_YX], width);
 
                 current_src_buffer = src_buffers[BR_YX];
                 src_buffer_offset_x = origin_x;
@@ -592,7 +581,7 @@ void implementation_driver(
             else
             {
                 if (!src_buffers[BL_YX])
-                    setupBufferBLYX(frame_buffer, &src_buffers[BL_YX], width);
+                    setupBufferBLYX(frame_buffer, temp_buffer, &src_buffers[BL_YX], width);
 
                 current_src_buffer = src_buffers[BL_YX];
                 src_buffer_offset_x = origin_x - LAMBDA;
@@ -605,7 +594,7 @@ void implementation_driver(
             if (unit_y_x_dir > 0)
             {
                 if (!src_buffers[TR_YX])
-                    setupBufferTRYX(frame_buffer, &src_buffers[TR_YX], width);
+                    setupBufferTRYX(frame_buffer, temp_buffer, &src_buffers[TR_YX], width);
 
                 current_src_buffer = src_buffers[TR_YX];
                 src_buffer_offset_x = origin_x;
@@ -613,7 +602,7 @@ void implementation_driver(
             else
             {
                 if (!src_buffers[TL_YX])
-                    setupBufferTLYX(frame_buffer, &src_buffers[TL_YX], width);
+                    setupBufferTLYX(frame_buffer, temp_buffer, &src_buffers[TL_YX], width);
 
                 current_src_buffer = src_buffers[TL_YX];                
                 src_buffer_offset_x = origin_x - LAMBDA;
@@ -665,6 +654,8 @@ void implementation_driver(
             free(src_buffers[i]->segments);
         free(src_buffers[i]);
     }
+
+    free(temp_buffer);
 
     return;
 }

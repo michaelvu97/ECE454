@@ -3,4 +3,4 @@
 cd bin
 make
 cd ..
-./bin/ECE454_Lab2 -g -f sensor_values2.csv -i smol.bmp
+./bin/ECE454_Lab2 -g -f sensor_values2.csv -i nice.bmp
