@@ -149,11 +149,60 @@ static inline int min(int a, int b)
  */
 void compress_buffer(unsigned char* src_buffer, dense_buffer_t** dest_buffer, int width)
 {
-    int write_index = 0;
-    segment_t* temp_dest_buffer = (segment_t*) malloc(sizeof(segment_t) * MAX_ROW_SIZE);
+    // TODO: do this without the extra malloc.
+
     #ifdef DEBUGGING
     printf("Compressing buffer\n");
     #endif
+
+    int num_segments = 0;
+
+    // Count the exact number of segments
+    for (int row = 0; row < width; ++row)
+    {
+        // find row-continuous segments of the same colour. Map to the same struct.
+        int y_offset = row * width;
+
+        int curr_col = 0;
+
+        while (curr_col < width)
+        {
+            int src_offset = 3 * (y_offset + curr_col);
+
+            // Ignore white pixels
+            if (src_buffer[src_offset] == 0xff && src_buffer[src_offset + 1] == 0xff && src_buffer[src_offset + 2])
+            {
+                curr_col++;
+                continue;
+            }
+
+            unsigned char last_r = src_buffer[src_offset];
+            unsigned char last_g = src_buffer[src_offset + 1];
+            unsigned char last_b = src_buffer[src_offset + 2];
+
+            // Seek until the we reach the end of the row or a different coloured pixel
+            int seek_offset = 1;
+            int seek_offset_bytes = 3;
+            while (curr_col + seek_offset < width 
+                && src_buffer[src_offset + seek_offset_bytes] == last_r 
+                && src_buffer[src_offset + seek_offset_bytes + 1] == last_g
+                && src_buffer[src_offset + seek_offset_bytes + 2] == last_b)
+            {
+                seek_offset++;
+                seek_offset_bytes += 3;
+            }
+
+            curr_col += seek_offset;
+            num_segments++;
+        }
+    }
+
+    dense_buffer_t* dest = *dest_buffer = malloc(sizeof(dense_buffer_t));
+    dest->length = num_segments;
+    segment_t* temp_dest_buffer = dest->segments = (segment_t*) malloc(sizeof(segment_t) * num_segments);
+
+    int write_index = 0;
+
     for (int row = 0; row < width; ++row)
     {
         // find row-continuous segments of the same colour. Map to the same struct.
@@ -195,12 +244,6 @@ void compress_buffer(unsigned char* src_buffer, dense_buffer_t** dest_buffer, in
             write_index++;
         }
     }
-
-    dense_buffer_t* dest = *dest_buffer = malloc(sizeof(dense_buffer_t));
-    dest->length = write_index;
-    dest->segments = (segment_t*) malloc(sizeof(segment_t) * write_index);
-    memcpy(dest->segments, temp_dest_buffer, sizeof(segment_t) * write_index);
-    free(temp_dest_buffer);
 }
 
 static inline void setupBufferBRXY(unsigned char* src_buffer, dense_buffer_t** dest_buffer, int width)
@@ -594,23 +637,18 @@ void implementation_driver(
             int segment_len = current_segment.length;
             int y = current_segment.y + src_buffer_offset_y;
 
-            if (y < 0 || y > LAMBDA)
-                continue;
-
             int y_offset = y * width;
             int base_x = current_segment.x + src_buffer_offset_x;
 
-            for (int delta_x = 0; delta_x < segment_len; ++delta_x)
-            {
-                int x = delta_x + base_x; // Can be simplified in loop
-                if (x < 0 || x > LAMBDA)
-                    continue;
+            int end = 3 * (segment_len + base_x + y_offset);
 
-                // X and Y guaranteed to be on the dest buffer
-                int base_byte = 3 * (x + y_offset);
-                dest_buffer[base_byte] = current_segment.r;
-                dest_buffer[base_byte + 1] = current_segment.g;
-                dest_buffer[base_byte + 2] = current_segment.b;
+            // Can optimize even further by calculating better bound
+            for (int final_offset = 3 * (base_x + y_offset); final_offset < end; final_offset += 3)
+            {
+                // Can be simplified in loop
+                dest_buffer[final_offset] = current_segment.r;
+                dest_buffer[final_offset + 1] = current_segment.g;
+                dest_buffer[final_offset + 2] = current_segment.b;
             }
         }
         
@@ -623,7 +661,8 @@ void implementation_driver(
 
     for (int i = 0; i < 8; i++) 
     {
-        free(src_buffers[i]->segments);
+        if (src_buffers[i])
+            free(src_buffers[i]->segments);
         free(src_buffers[i]);
     }
 
