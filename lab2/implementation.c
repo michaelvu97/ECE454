@@ -143,18 +143,17 @@ static void compress_buffer(unsigned char* src_buffer, dense_buffer_t** dest_buf
 
     int num_segments = 0;
     int triple_width = 3 * width;
+    int byte_max = triple_width * width;
 
     // Count the exact number of segments
-    for (int row = 0; row < width; ++row)
+    for (int row_offset_bytes = 0; row_offset_bytes < byte_max; row_offset_bytes += triple_width)
     {
         // find row-continuous segments of the same colour. Map to the same struct.
-        int y_offset = 3 * row * width;
-
         int curr_col = 0;
 
         while (curr_col < triple_width)
         {
-            int src_offset = y_offset + curr_col;
+            int src_offset = row_offset_bytes + curr_col;
 
             if (src_buffer[src_offset] == 0xff && src_buffer[src_offset + 1] == 0xff && src_buffer[src_offset + 2] == 0xff)
             {
@@ -189,44 +188,42 @@ static void compress_buffer(unsigned char* src_buffer, dense_buffer_t** dest_buf
 
     int write_index = 0;
 
-    for (int row = 0; row < width; ++row)
+    for (int row_offset_bytes = 0; row_offset_bytes < byte_max; row_offset_bytes += triple_width)
     {
         // find row-continuous segments of the same colour. Map to the same struct.
-        int y_offset = row * width;
-        int y_offset_bytes = row * triple_width;
-        int curr_col = 0;
+        int curr_col_byte = 0;
 
-        while (curr_col < width)
+        while (curr_col_byte < triple_width)
         {
-            int src_offset = 3 * (y_offset + curr_col);
+            int src_offset = row_offset_bytes + curr_col_byte;
 
             // Ignore white pixels
             if (src_buffer[src_offset] == 0xff && src_buffer[src_offset + 1] == 0xff && src_buffer[src_offset + 2] == 0xff)
             {
-                curr_col++;
+                curr_col_byte += 3;
                 continue;
             }
 
             // We are at the beginning of a non-white pixel.
-            temp_dest_buffer[write_index].x_bytes = 3 * curr_col;
-            temp_dest_buffer[write_index].y_bytes = y_offset_bytes;
+            temp_dest_buffer[write_index].x_bytes = curr_col_byte;
+            temp_dest_buffer[write_index].y_bytes = row_offset_bytes;
             unsigned char curr_r = temp_dest_buffer[write_index].r = src_buffer[src_offset];
             unsigned char curr_g = temp_dest_buffer[write_index].g = src_buffer[src_offset + 1];
             unsigned char curr_b = temp_dest_buffer[write_index].b = src_buffer[src_offset + 2];
 
             // Seek until the we reach the end of the row or a different coloured pixel
-            int seek_offset = 1;
-            int seek_offset_bytes = 3 + src_offset;
-            while (curr_col + seek_offset < width 
-                && src_buffer[seek_offset_bytes] == curr_r 
-                && src_buffer[seek_offset_bytes + 1] == curr_g
-                && src_buffer[seek_offset_bytes + 2] == curr_b)
+            int seek_offset_byte = 3;
+            int seek_offset_bytes_total = 3 + src_offset; // TODO rm
+            while (curr_col_byte + seek_offset_byte < triple_width 
+                && src_buffer[seek_offset_bytes_total] == curr_r 
+                && src_buffer[seek_offset_bytes_total + 1] == curr_g
+                && src_buffer[seek_offset_bytes_total + 2] == curr_b)
             {
-                seek_offset++;
-                seek_offset_bytes += 3;
+                seek_offset_byte += 3;
+                seek_offset_bytes_total += 3;
             }
-            temp_dest_buffer[write_index].length_bytes = 3 * seek_offset; // Now in bytes
-            curr_col += seek_offset;
+            temp_dest_buffer[write_index].length_bytes = seek_offset_byte;
+            curr_col_byte += seek_offset_byte;
             write_index++;
         }
     }
@@ -448,7 +445,7 @@ void implementation_driver(
 
             int val = instr.argument;
 
-            // TODO opt
+            // TODO opt?
             switch (instr.type)
             {
                 case translateX:
@@ -629,8 +626,6 @@ void implementation_driver(
         {
             segment_t current_segment = segments[i];
 
-            // TODO Can reduce multiplication
-
             int start = (current_segment.x_bytes + src_buffer_offset_x_bytes) + (src_buffer_offset_y_bytes + current_segment.y_bytes);
             int end = current_segment.length_bytes + start;
     
@@ -655,7 +650,6 @@ void implementation_driver(
             {
                 segment_t current_segment = segments[i];
 
-                // TODO Can reduce multiplication
                 int start = (current_segment.x_bytes + src_buffer_offset_x_bytes) + (src_buffer_offset_y_bytes + current_segment.y_bytes);
                 int end = current_segment.length_bytes + start;
 
