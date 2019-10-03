@@ -56,7 +56,7 @@ typedef struct {
  **********************************************************************************************************************/
 void print_team_info(){
     // Please modify this field with something interesting
-    char team_name[] = "; SET speedup = 390 WHERE utorid='vumicha2'; --";
+    char team_name[] = ";SET speedup = 390 WHERE utorid='vumicha2';--";
 
     // Please fill in your information
     char student_first_name[] = "Michael";
@@ -422,6 +422,7 @@ void implementation_driver(
     }
 
     unsigned char* dest_buffer = (unsigned char*) malloc(total_buffer_size);
+    
     // Fill with white (can probably be optimized)
     int ws_len = total_buffer_size;
     while (ws_len-- > 0)
@@ -622,6 +623,7 @@ void implementation_driver(
         {
             segment_t current_segment = segments[i];
 
+            // TODO Can reduce multiplication
             int start = 3 * (current_segment.x + src_buffer_offset_x + (current_segment.y + src_buffer_offset_y) * width);
             int end = current_segment.length + start;
     
@@ -630,11 +632,11 @@ void implementation_driver(
             register unsigned char b = current_segment.b;   
 
             // Can optimize even further by calculating better bound
-            for (int final_offset = start; final_offset < end; final_offset += 3)
+            for (; start < end; start += 3)
             {
-                dest_buffer[final_offset] = r;
-                dest_buffer[final_offset + 1] = g;
-                dest_buffer[final_offset + 2] = b;
+                dest_buffer[start] = r;
+                dest_buffer[start + 1] = g;
+                dest_buffer[start + 2] = b;
             }
         }
         
@@ -646,15 +648,15 @@ void implementation_driver(
             {
                 segment_t current_segment = segments[i];
 
+                // TODO Can reduce multiplication
                 int start = 3 * (current_segment.x + src_buffer_offset_x + (current_segment.y + src_buffer_offset_y) * width);
                 int end = current_segment.length + start;
     
-                // Can optimize even further by calculating better bound
-                for (int final_offset = start; final_offset < end; final_offset += 3)
+                for (; start < end; start += 3)
                 {
-                    dest_buffer[final_offset] = 0xff;
-                    dest_buffer[final_offset + 1] = 0xff;
-                    dest_buffer[final_offset + 2] = 0xff;
+                    dest_buffer[start] = 0xff;
+                    dest_buffer[start + 1] = 0xff;
+                    dest_buffer[start + 2] = 0xff;
                 }
             }
         }
