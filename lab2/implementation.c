@@ -263,17 +263,18 @@ static void setupBufferBLXY(unsigned char* src_buffer, unsigned char* temp_dest_
     printf("BLXY\n");
 #endif
     int LAMBDA = width - 1;
+    int triple_width = 3 * width;
+    int TRIPLE_LAMBDA = 3 * LAMBDA;
     for (int src_y = 0, dest_y = 0; src_y < width; ++src_y, ++dest_y)
     {
-        int src_row_offset = src_y * width;
-        int dest_row_offset = dest_y * width;
-        for (int src_x = 0, dest_x = LAMBDA; src_x < width; ++src_x, --dest_x)
+        int src_offset = src_y * triple_width;
+        int end = src_offset + triple_width;
+        int dest_offset = 3 * dest_y * width + TRIPLE_LAMBDA;
+        for (; src_offset < end; src_offset += 3, dest_offset -= 3)
         {
-            int src_base = 3 * (src_row_offset + src_x);
-            int dest_base = 3 * (dest_row_offset + dest_x);
-            temp_dest_buffer[dest_base] = src_buffer[src_base];
-            temp_dest_buffer[dest_base + 1] = src_buffer[src_base + 1];
-            temp_dest_buffer[dest_base + 2] = src_buffer[src_base + 2];
+            temp_dest_buffer[dest_offset] = src_buffer[src_offset];
+            temp_dest_buffer[dest_offset + 1] = src_buffer[src_offset + 1];
+            temp_dest_buffer[dest_offset + 2] = src_buffer[src_offset + 2];
         }
     }
     compress_buffer(temp_dest_buffer, dest_buffer, width);
