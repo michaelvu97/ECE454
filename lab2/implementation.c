@@ -19,9 +19,9 @@ typedef enum
 
 typedef struct 
 {
-    int x;
-    int y;
-    int length;
+    int x_bytes;
+    int y_bytes;
+    int length_bytes;
     unsigned char r;
     unsigned char g;
     unsigned char b;
@@ -193,7 +193,7 @@ static void compress_buffer(unsigned char* src_buffer, dense_buffer_t** dest_buf
     {
         // find row-continuous segments of the same colour. Map to the same struct.
         int y_offset = row * width;
-
+        int y_offset_bytes = row * triple_width;
         int curr_col = 0;
 
         while (curr_col < width)
@@ -208,8 +208,8 @@ static void compress_buffer(unsigned char* src_buffer, dense_buffer_t** dest_buf
             }
 
             // We are at the beginning of a non-white pixel.
-            temp_dest_buffer[write_index].x = curr_col;
-            temp_dest_buffer[write_index].y = row;
+            temp_dest_buffer[write_index].x_bytes = 3 * curr_col;
+            temp_dest_buffer[write_index].y_bytes = y_offset_bytes;
             unsigned char curr_r = temp_dest_buffer[write_index].r = src_buffer[src_offset];
             unsigned char curr_g = temp_dest_buffer[write_index].g = src_buffer[src_offset + 1];
             unsigned char curr_b = temp_dest_buffer[write_index].b = src_buffer[src_offset + 2];
@@ -225,7 +225,7 @@ static void compress_buffer(unsigned char* src_buffer, dense_buffer_t** dest_buf
                 seek_offset++;
                 seek_offset_bytes += 3;
             }
-            temp_dest_buffer[write_index].length = 3 * seek_offset; // Now in bytes
+            temp_dest_buffer[write_index].length_bytes = 3 * seek_offset; // Now in bytes
             curr_col += seek_offset;
             write_index++;
         }
@@ -413,6 +413,9 @@ void implementation_driver(
     int frames_to_process = sensor_values_count / 25;
     int total_buffer_size = 3 * width * width;
     int LAMBDA = width - 1;
+    int triple_width = width * 3;
+    int TRIPLE_LAMBDA = 3 * LAMBDA;
+    int TRIPLE_WIDTH_LAMBDA = width * TRIPLE_LAMBDA;
 
     dense_buffer_t* src_buffers[8];
     for (int i = 0; i < 8; i++)
@@ -422,7 +425,7 @@ void implementation_driver(
     }
 
     unsigned char* dest_buffer = (unsigned char*) malloc(total_buffer_size);
-    
+
     // Fill with white (can probably be optimized)
     int ws_len = total_buffer_size;
     while (ws_len-- > 0)
@@ -518,9 +521,12 @@ void implementation_driver(
         int unit_y_x_dir = unit_y_x - origin_x;
         int unit_y_y_dir = unit_y_y - origin_y;
 
+        int origin_x_bytes = 3 * origin_x;
+        int origin_y_bytes = triple_width * origin_y;
+
         // TODO determine which to run in a more optimized way
-        int src_buffer_offset_x;
-        int src_buffer_offset_y;
+        int src_buffer_offset_x_bytes;
+        int src_buffer_offset_y_bytes;
         dense_buffer_t* current_src_buffer;
 
         #ifdef DEBUGGING
@@ -535,7 +541,7 @@ void implementation_driver(
                     setupBufferBRXY(frame_buffer, &src_buffers[BR_XY], width);
                 
                 current_src_buffer = src_buffers[BR_XY];                
-                src_buffer_offset_y = origin_y;
+                src_buffer_offset_y_bytes = origin_y_bytes;
             }
             else
             {
@@ -543,10 +549,10 @@ void implementation_driver(
                     setupBufferTRXY(frame_buffer, temp_buffer, &src_buffers[TR_XY], width);
 
                 current_src_buffer = src_buffers[TR_XY];
-                src_buffer_offset_y = origin_y - LAMBDA;
+                src_buffer_offset_y_bytes = origin_y_bytes - TRIPLE_WIDTH_LAMBDA;
             }
 
-            src_buffer_offset_x = origin_x;
+            src_buffer_offset_x_bytes = origin_x_bytes;
         }
         else if (unit_x_x_dir < 0)
         {
@@ -556,7 +562,7 @@ void implementation_driver(
                     setupBufferBLXY(frame_buffer, temp_buffer, &src_buffers[BL_XY], width);
 
                 current_src_buffer = src_buffers[BL_XY];
-                src_buffer_offset_y = origin_y;
+                src_buffer_offset_y_bytes = origin_y_bytes;
             }
             else
             {
@@ -564,10 +570,10 @@ void implementation_driver(
                     setupBufferTLXY(frame_buffer, temp_buffer, &src_buffers[TL_XY], width);
 
                 current_src_buffer = src_buffers[TL_XY];
-                src_buffer_offset_y = origin_y - LAMBDA;
+                src_buffer_offset_y_bytes = origin_y_bytes - TRIPLE_WIDTH_LAMBDA;
             }
 
-            src_buffer_offset_x = origin_x - LAMBDA;
+            src_buffer_offset_x_bytes = origin_x_bytes - TRIPLE_LAMBDA;
         }
         else if (unit_x_y_dir > 0)
         {
@@ -577,7 +583,7 @@ void implementation_driver(
                     setupBufferBRYX(frame_buffer, temp_buffer, &src_buffers[BR_YX], width);
 
                 current_src_buffer = src_buffers[BR_YX];
-                src_buffer_offset_x = origin_x;
+                src_buffer_offset_x_bytes = origin_x_bytes;
             }
             else
             {
@@ -585,10 +591,10 @@ void implementation_driver(
                     setupBufferBLYX(frame_buffer, temp_buffer, &src_buffers[BL_YX], width);
 
                 current_src_buffer = src_buffers[BL_YX];
-                src_buffer_offset_x = origin_x - LAMBDA;
+                src_buffer_offset_x_bytes = origin_x_bytes - TRIPLE_LAMBDA;
             }
 
-            src_buffer_offset_y = origin_y;                
+            src_buffer_offset_y_bytes = origin_y_bytes;
         }
         else
         {
@@ -598,7 +604,7 @@ void implementation_driver(
                     setupBufferTRYX(frame_buffer, temp_buffer, &src_buffers[TR_YX], width);
 
                 current_src_buffer = src_buffers[TR_YX];
-                src_buffer_offset_x = origin_x;
+                src_buffer_offset_x_bytes = origin_x_bytes;
             }
             else
             {
@@ -606,14 +612,14 @@ void implementation_driver(
                     setupBufferTLYX(frame_buffer, temp_buffer, &src_buffers[TL_YX], width);
 
                 current_src_buffer = src_buffers[TL_YX];                
-                src_buffer_offset_x = origin_x - LAMBDA;
+                src_buffer_offset_x_bytes = origin_x_bytes - TRIPLE_LAMBDA;
             }
 
-            src_buffer_offset_y = origin_y - LAMBDA;
+            src_buffer_offset_y_bytes = origin_y_bytes - TRIPLE_WIDTH_LAMBDA;
         }
 
         #ifdef DEBUGGING
-            printf("origin: (%d, %d), dest: (%d, %d)\n", origin_x, origin_y, src_buffer_offset_x, src_buffer_offset_y);
+            printf("origin: (%d, %d), dest: (%d, %d)\n", origin_x, origin_y, src_buffer_offset_x_bytes, src_buffer_offset_y_bytes);
         #endif
 
         // Copy the transformed dense structure with offset
@@ -624,8 +630,9 @@ void implementation_driver(
             segment_t current_segment = segments[i];
 
             // TODO Can reduce multiplication
-            int start = 3 * (current_segment.x + src_buffer_offset_x + (current_segment.y + src_buffer_offset_y) * width);
-            int end = current_segment.length + start;
+
+            int start = (current_segment.x_bytes + src_buffer_offset_x_bytes) + (src_buffer_offset_y_bytes + current_segment.y_bytes);
+            int end = current_segment.length_bytes + start;
     
             register unsigned char r = current_segment.r;
             register unsigned char g = current_segment.g;
@@ -649,9 +656,9 @@ void implementation_driver(
                 segment_t current_segment = segments[i];
 
                 // TODO Can reduce multiplication
-                int start = 3 * (current_segment.x + src_buffer_offset_x + (current_segment.y + src_buffer_offset_y) * width);
-                int end = current_segment.length + start;
-    
+                int start = (current_segment.x_bytes + src_buffer_offset_x_bytes) + (src_buffer_offset_y_bytes + current_segment.y_bytes);
+                int end = current_segment.length_bytes + start;
+
                 for (; start < end; start += 3)
                 {
                     dest_buffer[start] = 0xff;
