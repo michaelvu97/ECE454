@@ -436,8 +436,6 @@ void implementation_driver(
 
     for (int frameIdx = 0; frameIdx < frames_to_process; frameIdx++)
     {   
-        // These can be reset every frame, since we use the last transformation
-        // as the source.
         for (int sensorIdx = 0; sensorIdx < 25; sensorIdx++)
         {
             instruction instr = parse_sensor_value(
@@ -672,7 +670,7 @@ void implementation_driver(
             free(src_buffers[i]->segments);
         free(src_buffers[i]);
     }
-
+    free(dest_buffer);
     free(temp_buffer);
 
     return;
