@@ -243,11 +243,11 @@ static void setupBufferBRYX(unsigned char* src_buffer, unsigned char* temp_dest_
     printf("BRYX\n");
 #endif
     int triple_width = 3 * width;
-    for (int src_y = 0, dest_x = 0; src_y < width; ++src_y, dest_x += 3)
+    int y_end = triple_width * width;
+    for (int src_y_byte = 0, dest_x = 0; src_y_byte < y_end; src_y_byte += triple_width, dest_x += 3)
     {
-        int src_row_offset = src_y * triple_width;
-        int end = src_row_offset + triple_width;
-        for (int src_x = src_row_offset, dest_y = dest_x; src_x < end; src_x += 3, dest_y += triple_width)
+        int end = src_y_byte + triple_width;
+        for (int src_x = src_y_byte, dest_y = dest_x; src_x < end; src_x += 3, dest_y += triple_width)
         {
             temp_dest_buffer[dest_y] = src_buffer[src_x];
             temp_dest_buffer[dest_y + 1] = src_buffer[src_x + 1];
