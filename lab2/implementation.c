@@ -411,7 +411,7 @@ void implementation_driver(
 {
     int processed_frames = 0;
     int frames_to_process = sensor_values_count / 25;
-
+    int total_buffer_size = 3 * width * width;
     int LAMBDA = width - 1;
 
     dense_buffer_t* src_buffers[8];
@@ -421,14 +421,14 @@ void implementation_driver(
         src_buffers[i] = 0x0;
     }
 
-    unsigned char* dest_buffer = (unsigned char*) malloc(sizeof(unsigned char) * 3 * width * height);
+    unsigned char* dest_buffer = (unsigned char*) malloc(total_buffer_size);
     // Fill with white (can probably be optimized)
-    int ws_len = 3 * width * width;
+    int ws_len = total_buffer_size;
     while (ws_len-- > 0)
         dest_buffer[ws_len] = 0xff;
 
     // Used for building the rotated buffers.
-    unsigned char* temp_buffer = (unsigned char*) malloc(sizeof(unsigned char) * 3 * width * height);
+    unsigned char* temp_buffer = (unsigned char*) malloc(total_buffer_size);
 
     int origin_x = 0, origin_y = 0;
     int unit_x_x = 1, unit_x_y = 0;
