@@ -56,7 +56,7 @@ typedef struct {
  **********************************************************************************************************************/
 void print_team_info(){
     // Please modify this field with something interesting
-    char team_name[] = "😉";
+    char team_name[] = "; SET speedup = 390 WHERE utorid='vumicha2'; --";
 
     // Please fill in your information
     char student_first_name[] = "Michael";
