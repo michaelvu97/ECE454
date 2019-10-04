@@ -7,21 +7,15 @@
 
 //#define DEBUGGING
 
-typedef enum
-{
-    none,
-    translateX,
-    translateY,
-    rotateCW,
-    mirrorX,
-    mirrorY
-} instruction_type;
+#define INSTR_translateX 1
+#define INSTR_translateY 2
+#define INSTR_rotateCW 3
+#define INSTR_mirrorX 4
+#define INSTR_mirrorY 5
 
 typedef struct 
 {
-    int x_bytes;
-    int y_bytes;
-    int length_bytes;
+    int offset; // x_bytes + y_bytes.
     unsigned char r;
     unsigned char g;
     unsigned char b;
@@ -98,22 +92,7 @@ static void compress_buffer(unsigned char* src_buffer, dense_buffer_t** dest_buf
                 continue;
             }
 
-            register unsigned char last_r = src_buffer[src_offset];
-            register unsigned char last_g = src_buffer[src_offset + 1];
-            register unsigned char last_b = src_buffer[src_offset + 2];
-
-            // Seek until the we reach the end of the row or a different coloured pixel
-            int seek_offset_bytes = 3 + src_offset;
-            int end = triple_width - curr_col + src_offset;
-            while (seek_offset_bytes < end 
-                && src_buffer[seek_offset_bytes] == last_r 
-                && src_buffer[seek_offset_bytes + 1] == last_g
-                && src_buffer[seek_offset_bytes + 2] == last_b)
-            {
-                seek_offset_bytes += 3;
-            }
-
-            curr_col += seek_offset_bytes - src_offset;
+            curr_col += 3;
             num_segments++;
         }
     }
@@ -141,24 +120,12 @@ static void compress_buffer(unsigned char* src_buffer, dense_buffer_t** dest_buf
             }
 
             // We are at the beginning of a non-white pixel.
-            temp_dest_buffer[write_index].x_bytes = curr_col_byte;
-            temp_dest_buffer[write_index].y_bytes = row_offset_bytes;
-            register unsigned char curr_r = temp_dest_buffer[write_index].r = src_buffer[src_offset];
-            register unsigned char curr_g = temp_dest_buffer[write_index].g = src_buffer[src_offset + 1];
-            register unsigned char curr_b = temp_dest_buffer[write_index].b = src_buffer[src_offset + 2];
+            temp_dest_buffer[write_index].offset = curr_col_byte + row_offset_bytes;
+            temp_dest_buffer[write_index].r = src_buffer[src_offset];
+            temp_dest_buffer[write_index].g = src_buffer[src_offset + 1];
+            temp_dest_buffer[write_index].b = src_buffer[src_offset + 2];
 
-            // Seek until the we reach the end of the row or a different coloured pixel
-            register int seek_offset_bytes_total = 3 + src_offset;
-            int end = triple_width - curr_col_byte + src_offset;
-
-            while (seek_offset_bytes_total < end 
-                && src_buffer[seek_offset_bytes_total] == curr_r 
-                && src_buffer[seek_offset_bytes_total + 1] == curr_g
-                && src_buffer[seek_offset_bytes_total + 2] == curr_b)
-            {
-                seek_offset_bytes_total += 3;
-            }
-            curr_col_byte += temp_dest_buffer[write_index].length_bytes = seek_offset_bytes_total - src_offset;
+            curr_col_byte += 3;
             write_index++;
         }
     }
@@ -378,7 +345,7 @@ void implementation_driver(
         int sensor_index_end = frameIdx + 25;   
         for (int sensorIdx = frameIdx; sensorIdx < sensor_index_end; sensorIdx++)
         {
-            instruction_type type;
+            unsigned char type;
             int argument;
 
             // TODO: unroll further?
@@ -387,14 +354,14 @@ void implementation_driver(
             char first = *key;
             if (first == 'M'){
                 if (key[1] == 'X')
-                    type = mirrorX;
+                    type = INSTR_mirrorX;
                 else 
-                    type = mirrorY;
+                    type = INSTR_mirrorY;
             } else {
                 argument = sensor_values[sensorIdx].value;
                 if (first == 'C')
                 {
-                    type = rotateCW;
+                    type = INSTR_rotateCW;
 
                     // Rotation
                     if (key[1] == 'C')
@@ -406,12 +373,12 @@ void implementation_driver(
                         case 'W':
                             argument = -1 * argument;
                         case 'S':
-                            type = translateY;
+                            type = INSTR_translateY;
                             break;
                         case 'A':
                             argument = -1 * argument;
                         case 'D':
-                            type = translateX;
+                            type = INSTR_translateX;
                             break;
                     }
                 }
@@ -419,17 +386,17 @@ void implementation_driver(
 
             switch (type)
             {
-                case translateX:
+                case INSTR_translateX:
                     origin_x += argument;
                     unit_x_x += argument;
                     unit_y_x += argument;
                     break;
-                case translateY:
+                case INSTR_translateY:
                     origin_y += argument;
                     unit_x_y += argument;
                     unit_y_y += argument;
                     break;
-                case rotateCW:
+                case INSTR_rotateCW:
                     // Constrain argument to [0,3].
                     argument = argument % 4;
                     if (argument < 0)
@@ -469,12 +436,12 @@ void implementation_driver(
                         }
                     }
                     break;
-                case mirrorX:
+                case INSTR_mirrorX:
                     origin_y = LAMBDA - origin_y;
                     unit_x_y = LAMBDA - unit_x_y;
                     unit_y_y = LAMBDA - unit_y_y;
                     break;
-                case mirrorY:
+                case INSTR_mirrorY:
                     origin_x = LAMBDA - origin_x;
                     unit_x_x = LAMBDA - unit_x_x;
                     unit_y_x = LAMBDA - unit_y_x;
@@ -590,6 +557,8 @@ void implementation_driver(
             printf("origin: (%d, %d), dest: (%d, %d)\n", origin_x, origin_y, src_buffer_offset_x_bytes, src_buffer_offset_y_bytes);
         #endif
 
+        int base_offset = src_buffer_offset_x_bytes + src_buffer_offset_y_bytes;
+
         // Copy the transformed dense structure with offset
         int num_segments = current_src_buffer->length;
         segment_t* segments = current_src_buffer->segments;
@@ -597,21 +566,11 @@ void implementation_driver(
         {
             segment_t current_segment = segments[i];
 
-            int start = current_segment.x_bytes + src_buffer_offset_x_bytes 
-                    + src_buffer_offset_y_bytes + current_segment.y_bytes;
-            int end = current_segment.length_bytes + start;
-    
-            register unsigned char r = current_segment.r;
-            register unsigned char g = current_segment.g;
-            register unsigned char b = current_segment.b;   
-
-            // Can optimize even further by calculating better bound
-            for (; start < end; start += 3)
-            {
-                dest_buffer[start] = r;
-                dest_buffer[start + 1] = g;
-                dest_buffer[start + 2] = b;
-            }
+            register int start = current_segment.offset + base_offset;
+        
+            dest_buffer[start] = current_segment.r;
+            dest_buffer[start + 1] = current_segment.g;
+            dest_buffer[start + 2] = current_segment.b;
         }
         
         verifyFrame(dest_buffer, width, height, grading_mode);
@@ -622,18 +581,11 @@ void implementation_driver(
             {
                 segment_t current_segment = segments[i];
 
-                register int start = current_segment.x_bytes 
-                        + src_buffer_offset_x_bytes 
-                        + src_buffer_offset_y_bytes 
-                        + current_segment.y_bytes;
-                register int end = current_segment.length_bytes + start;
+                register int start = current_segment.offset + base_offset;
 
-                for (; start < end; start += 3)
-                {
-                    dest_buffer[start] = 0xff;
-                    dest_buffer[start + 1] = 0xff;
-                    dest_buffer[start + 2] = 0xff;
-                }
+                dest_buffer[start] = 0xff;
+                dest_buffer[start + 1] = 0xff;
+                dest_buffer[start + 2] = 0xff;
             }
         }
     }
