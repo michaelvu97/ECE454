@@ -108,62 +108,86 @@ void implementation_driver(
 
     int write_index = 0;
 
-    for (int src_row = 0; src_row < width; ++src_row)
+    for (
+        int src_row = 0,
+            row_width = 0,
+            inverse_row = TRIPLE_LAMBDA,
+            inverse_row_width = TRIPLE_WIDTH_LAMBDA; 
+
+            src_row < triple_width;
+
+            src_row += 3,
+            row_width += triple_width,
+            inverse_row -= 3,
+            inverse_row_width -= triple_width)
     {
-        for (int src_col = 0; src_col < width; ++src_col)
+        for (
+            int src_col = 0, 
+                col_width = 0,
+                inverse_col = TRIPLE_LAMBDA,
+                inverse_col_width = TRIPLE_WIDTH_LAMBDA; 
+
+                src_col < triple_width; 
+
+                src_col += 3, 
+                col_width += triple_width,
+                inverse_col -= 3,
+                inverse_col_width -= triple_width)
         {
-            int src_base = 3 * (src_row * width + src_col);
-            unsigned char r = frame_buffer[src_base];
-            unsigned char g = frame_buffer[src_base + 1];
-            unsigned char b = frame_buffer[src_base + 2];
+            int src_base = row_width + src_col;
+            register unsigned char r = frame_buffer[src_base];
+            register unsigned char g = frame_buffer[src_base + 1];
+            register unsigned char b = frame_buffer[src_base + 2];
 
             if (r == 0xff && g == 0xff && b == 0xff)
                 continue;
 
+            // TODO reduce multiplication
+
             // BRXY
-            src_buffers[BR_XY][write_index].offset = src_base; // ?
+            src_buffers[BR_XY][write_index].offset = src_base;
             src_buffers[BR_XY][write_index].r = r;
             src_buffers[BR_XY][write_index].g = g;
             src_buffers[BR_XY][write_index].b = b;
 
             // BRYX
-            src_buffers[BR_YX][write_index].offset = 3 * (src_col * width + src_row); // ?
+            src_buffers[BR_YX][write_index].offset = col_width + src_row;
             src_buffers[BR_YX][write_index].r = r;
             src_buffers[BR_YX][write_index].g = g;
             src_buffers[BR_YX][write_index].b = b;
 
             // TRXY
-            src_buffers[TR_XY][write_index].offset = 3 * ((LAMBDA - src_row) * width + src_col);
+            src_buffers[TR_XY][write_index].offset = inverse_row_width + src_col;
             src_buffers[TR_XY][write_index].r = r; 
             src_buffers[TR_XY][write_index].g = g;
             src_buffers[TR_XY][write_index].b = b;
 
             // TRYX
-            src_buffers[TR_YX][write_index].offset = 3 * (src_row + (LAMBDA - src_col) * width);
+            src_buffers[TR_YX][write_index].offset = src_row + inverse_col_width;
             src_buffers[TR_YX][write_index].r = r;
             src_buffers[TR_YX][write_index].g = g;
             src_buffers[TR_YX][write_index].b = b;
 
             // TLXY
-            src_buffers[TL_XY][write_index].offset = 3 * ((LAMBDA - src_col) + width * (LAMBDA - src_row));
+            src_buffers[TL_XY][write_index].offset = inverse_col + inverse_row_width;
             src_buffers[TL_XY][write_index].r = r;
             src_buffers[TL_XY][write_index].g = g;
             src_buffers[TL_XY][write_index].b = b;
 
             // TLYX
-            src_buffers[TL_YX][write_index].offset = 3 * ((LAMBDA - src_row) + width * (LAMBDA - src_col));
+            src_buffers[TL_YX][write_index].offset = inverse_row + inverse_col_width;
             src_buffers[TL_YX][write_index].r = r;
             src_buffers[TL_YX][write_index].g = g;
             src_buffers[TL_YX][write_index].b = b;
 
             // BLXY
-            src_buffers[BL_XY][write_index].offset = 3 * ((LAMBDA - src_col) + width * src_row);
+            src_buffers[BL_XY][write_index].offset = inverse_col + row_width;
             src_buffers[BL_XY][write_index].r = r;
             src_buffers[BL_XY][write_index].g = g;
             src_buffers[BL_XY][write_index].b = b;
 
             // BLYX
-            src_buffers[BL_YX][write_index].offset = 3 * ((LAMBDA - src_row) + width * src_col);
+            src_buffers[BL_YX][write_index].offset = inverse_row + col_width;
             src_buffers[BL_YX][write_index].r = r;
             src_buffers[BL_YX][write_index].g = g;
             src_buffers[BL_YX][write_index].b = b;
