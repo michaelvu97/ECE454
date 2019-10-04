@@ -5,7 +5,7 @@
 #include "utilities.h"  // DO NOT REMOVE this line
 #include "implementation_reference.h"   // DO NOT REMOVE this line
 
-//#define DEBUGGING
+// #define DEBUGGING
 
 #define INSTR_translateX 1
 #define INSTR_translateY 2
@@ -20,12 +20,6 @@ typedef struct
     unsigned char g;
     unsigned char b;
 } segment_t;
-
-typedef struct
-{
-    segment_t* segments;
-    int length;
-} dense_buffer_t;
 
 enum 
 {
@@ -61,233 +55,6 @@ void print_team_info(){
     printf("\tstudent_student_number: %s\n", student_student_number);
 }
 
-/*
- *
- * Cache setters
- *
- */
-static void compress_buffer(unsigned char* src_buffer, dense_buffer_t** dest_buffer, int width)
-{
-    #ifdef DEBUGGING
-    printf("Compressing buffer\n");
-    #endif
-
-    int num_segments = 0;
-    int triple_width = 3 * width;
-    int byte_max = triple_width * width;
-
-    // Count the exact number of segments
-    for (int row_offset_bytes = 0; row_offset_bytes < byte_max; row_offset_bytes += triple_width)
-    {
-        // find row-continuous segments of the same colour. Map to the same struct.
-        int curr_col = 0;
-
-        while (curr_col < triple_width)
-        {
-            int src_offset = row_offset_bytes + curr_col;
-
-            if (src_buffer[src_offset] == 0xff && src_buffer[src_offset + 1] == 0xff && src_buffer[src_offset + 2] == 0xff)
-            {
-                curr_col += 3;
-                continue;
-            }
-
-            curr_col += 3;
-            num_segments++;
-        }
-    }
-
-    dense_buffer_t* dest = *dest_buffer = malloc(sizeof(dense_buffer_t));
-    dest->length = num_segments;
-    segment_t* temp_dest_buffer = dest->segments = (segment_t*) malloc(sizeof(segment_t) * num_segments);
-
-    int write_index = 0;
-
-    for (int row_offset_bytes = 0; row_offset_bytes < byte_max; row_offset_bytes += triple_width)
-    {
-        // find row-continuous segments of the same colour. Map to the same struct.
-        int curr_col_byte = 0;
-
-        while (curr_col_byte < triple_width)
-        {
-            int src_offset = row_offset_bytes + curr_col_byte;
-
-            // Ignore white pixels
-            if (src_buffer[src_offset] == 0xff && src_buffer[src_offset + 1] == 0xff && src_buffer[src_offset + 2] == 0xff)
-            {
-                curr_col_byte += 3;
-                continue;
-            }
-
-            // We are at the beginning of a non-white pixel.
-            temp_dest_buffer[write_index].offset = curr_col_byte + row_offset_bytes;
-            temp_dest_buffer[write_index].r = src_buffer[src_offset];
-            temp_dest_buffer[write_index].g = src_buffer[src_offset + 1];
-            temp_dest_buffer[write_index].b = src_buffer[src_offset + 2];
-
-            curr_col_byte += 3;
-            write_index++;
-        }
-    }
-#ifdef DEBUGGING
-    printf("num segments: %d\n", num_segments);
-#endif
-}
-
-static inline void setupBufferBRXY(unsigned char* src_buffer, dense_buffer_t** dest_buffer, int width)
-{
-    compress_buffer(src_buffer, dest_buffer, width);
-}
-
-inline static void setupBufferBRYX(unsigned char* src_buffer, unsigned char* temp_dest_buffer, dense_buffer_t** dest_buffer, int width)
-{
-#ifdef DEBUGGING
-    printf("BRYX\n");
-#endif
-    int triple_width = 3 * width;
-    int y_end = triple_width * width;
-    for (int src_y_byte = 0, dest_x = 0; src_y_byte < y_end; src_y_byte += triple_width, dest_x += 3)
-    {
-        int end = src_y_byte + triple_width;
-        for (int src_x = src_y_byte, dest_y = dest_x; src_x < end; src_x += 3, dest_y += triple_width)
-        {
-            temp_dest_buffer[dest_y] = src_buffer[src_x];
-            temp_dest_buffer[dest_y + 1] = src_buffer[src_x + 1];
-            temp_dest_buffer[dest_y + 2] = src_buffer[src_x + 2];
-        }
-    }
-    compress_buffer(temp_dest_buffer, dest_buffer, width);
-}
-
-inline static void setupBufferBLXY(unsigned char* src_buffer, unsigned char* temp_dest_buffer, dense_buffer_t** dest_buffer, int width)
-{
-#ifdef DEBUGGING
-    printf("BLXY\n");
-#endif
-    int triple_width = 3 * width;
-    int y_end = triple_width * width;
-    for (int src_y = 0, dest_y = 3 * (width - 1); src_y < y_end; src_y += triple_width, dest_y += triple_width)
-    {
-        int end = src_y + triple_width;
-        for (int src_offset = src_y, dest_offset = dest_y; src_offset < end; src_offset += 3, dest_offset -= 3)
-        {
-            temp_dest_buffer[dest_offset] = src_buffer[src_offset];
-            temp_dest_buffer[dest_offset + 1] = src_buffer[src_offset + 1];
-            temp_dest_buffer[dest_offset + 2] = src_buffer[src_offset + 2];
-        }
-    }
-    compress_buffer(temp_dest_buffer, dest_buffer, width);
-}
-
-inline static void setupBufferBLYX(unsigned char* src_buffer, unsigned char* temp_dest_buffer, dense_buffer_t** dest_buffer, int width)
-{
-#ifdef DEBUGGING
-    printf("BLYX\n");
-#endif
-    int triple_width = 3 * width;
-    int y_end = triple_width * width;
-    for (int src_y = 0, dest_x = 3 * (width - 1); src_y < y_end; src_y += triple_width, dest_x -= 3)
-    {
-        int end = src_y + triple_width;
-        for (int src_offset = src_y, dest_offset = dest_x; src_offset < end; src_offset += 3, dest_offset += triple_width)
-        {
-            temp_dest_buffer[dest_offset] = src_buffer[src_offset];
-            temp_dest_buffer[dest_offset + 1] = src_buffer[src_offset + 1];
-            temp_dest_buffer[dest_offset + 2] = src_buffer[src_offset + 2];
-        }
-    }
-    compress_buffer(temp_dest_buffer, dest_buffer, width);
-}
-
-inline static void setupBufferTRXY(unsigned char* src_buffer, unsigned char* temp_dest_buffer, dense_buffer_t** dest_buffer, int width)
-{
-#ifdef DEBUGGING
-    printf("TRXY\n");
-#endif
-    int triple_width = 3 * width;
-    int y_end = triple_width * width;
-    for (int src_y = 0, dest_y = triple_width * (width - 1); src_y < y_end; src_y += triple_width, dest_y -= triple_width)
-    {
-        int end = src_y + triple_width;
-        for (int src_base = src_y, dest_base = dest_y; src_base < end; src_base += 3, dest_base += 3)
-        {
-            temp_dest_buffer[dest_base] = src_buffer[src_base];
-            temp_dest_buffer[dest_base + 1] = src_buffer[src_base + 1];
-            temp_dest_buffer[dest_base + 2] = src_buffer[src_base + 2];
-        }
-    }
-    compress_buffer(temp_dest_buffer, dest_buffer, width);
-}
-
-inline static void setupBufferTRYX(unsigned char* src_buffer, unsigned char* temp_dest_buffer, dense_buffer_t** dest_buffer, int width)
-{
-#ifdef DEBUGGING
-    printf("TRYX\n");
-#endif
-    int triple_width = width * 3;
-    int LAMBDA = width - 1;
-    int TRIPLE_LAMBDA = 3 * LAMBDA;
-    int dest_y_start = TRIPLE_LAMBDA * width;
-    int src_y_end = triple_width * width;
-    for (int src_y = 0, dest_x = 0; src_y < src_y_end; src_y += triple_width, dest_x += 3)
-    {
-        int end = src_y + triple_width;
-        for (int src_base = src_y, dest_base = dest_y_start + dest_x; src_base < end; src_base += 3, dest_base -= triple_width)
-        {   
-            temp_dest_buffer[dest_base] = src_buffer[src_base];
-            temp_dest_buffer[dest_base + 1] = src_buffer[src_base + 1];
-            temp_dest_buffer[dest_base + 2] = src_buffer[src_base + 2];
-        }
-    }
-    compress_buffer(temp_dest_buffer, dest_buffer, width);
-}
-
-inline static void setupBufferTLXY(unsigned char* src_buffer, unsigned char* temp_dest_buffer, dense_buffer_t** dest_buffer, int width)
-{
-#ifdef DEBUGGING
-    printf("TLXY\n");
-#endif
-    int LAMBDA = width - 1;
-    int TRIPLE_LAMBDA = 3 * LAMBDA;
-    int triple_width = 3 * width;
-    int src_y_end = width * triple_width;
-    for (int src_y = 0, dest_y = LAMBDA * triple_width + TRIPLE_LAMBDA; src_y < src_y_end; src_y += triple_width, dest_y -= triple_width)
-    {
-        int src_end = src_y + triple_width;
-        for (int src_base = src_y, dest_base = dest_y; src_base < src_end; src_base += 3, dest_base -= 3)
-        {
-            temp_dest_buffer[dest_base] = src_buffer[src_base];
-            temp_dest_buffer[dest_base + 1] = src_buffer[src_base + 1];
-            temp_dest_buffer[dest_base + 2] = src_buffer[src_base + 2];
-        }
-    }
-    compress_buffer(temp_dest_buffer, dest_buffer, width);
-}
-
-inline static void setupBufferTLYX(unsigned char* src_buffer, unsigned char* temp_dest_buffer, dense_buffer_t** dest_buffer, int width)
-{
-#ifdef DEBUGGING
-    printf("TLYX\n");
-#endif
-    int LAMBDA = width - 1;
-    int TRIPLE_LAMBDA = 3 * LAMBDA;
-    int triple_width = 3 * width;
-    int dest_y_start = triple_width * LAMBDA;
-    int y_end = triple_width * width;
-
-    for (int src_y = 0, dest_x = TRIPLE_LAMBDA + dest_y_start; src_y < y_end; src_y += triple_width, dest_x -= 3)
-    {
-        int end = src_y + triple_width;
-        for (int src_base = src_y, dest_base = dest_x; src_base < end; src_base += 3, dest_base -= triple_width)
-        {
-            temp_dest_buffer[dest_base] = src_buffer[src_base];
-            temp_dest_buffer[dest_base + 1] = src_buffer[src_base + 1];
-            temp_dest_buffer[dest_base + 2] = src_buffer[src_base + 2];
-        }
-    }
-    compress_buffer(temp_dest_buffer, dest_buffer, width);
-}
-
 /***********************************************************************************************************************
  * WARNING: Do not modify the implementation_driver and team info prototype (name, parameter, return value) !!!
  *          You can modify anything else in this file
@@ -317,22 +84,97 @@ void implementation_driver(
     int TRIPLE_LAMBDA = 3 * LAMBDA;
     int TRIPLE_WIDTH_LAMBDA = width * TRIPLE_LAMBDA;
 
-    dense_buffer_t* src_buffers[8];
-    for (int i = 0; i < 8; i++)
+
+    int num_pixels = 0;
+    for (int i = 0; i < total_buffer_size; i += 3)
     {
-        // Buffers are null until they are initialized
-        src_buffers[i] = 0x0;
+        // TODO opt
+        if (frame_buffer[i] == 0xff
+            && frame_buffer[i + 1] == 0xff
+            && frame_buffer[i + 2] == 0xff)
+            continue;
+        num_pixels++;
     }
 
-    unsigned char* dest_buffer = (unsigned char*) malloc(total_buffer_size);
+    #ifdef DEBUGGING
+        printf("num_pixels: %d\n", num_pixels);
+    #endif
 
+    segment_t* src_buffers[8];
+    for (int i = 0; i < 8; i++)
+    {
+        src_buffers[i] = (segment_t*) malloc(sizeof(segment_t) * num_pixels);
+    }
+
+    int write_index = 0;
+
+    for (int src_row = 0; src_row < width; ++src_row)
+    {
+        for (int src_col = 0; src_col < width; ++src_col)
+        {
+            int src_base = 3 * (src_row * width + src_col);
+            unsigned char r = frame_buffer[src_base];
+            unsigned char g = frame_buffer[src_base + 1];
+            unsigned char b = frame_buffer[src_base + 2];
+
+            if (r == 0xff && g == 0xff && b == 0xff)
+                continue;
+
+            // BRXY
+            src_buffers[BR_XY][write_index].offset = src_base; // ?
+            src_buffers[BR_XY][write_index].r = r;
+            src_buffers[BR_XY][write_index].g = g;
+            src_buffers[BR_XY][write_index].b = b;
+
+            // BRYX
+            src_buffers[BR_YX][write_index].offset = 3 * (src_col * width + src_row); // ?
+            src_buffers[BR_YX][write_index].r = r;
+            src_buffers[BR_YX][write_index].g = g;
+            src_buffers[BR_YX][write_index].b = b;
+
+            // TRXY
+            src_buffers[TR_XY][write_index].offset = 3 * ((LAMBDA - src_row) * width + src_col);
+            src_buffers[TR_XY][write_index].r = r; 
+            src_buffers[TR_XY][write_index].g = g;
+            src_buffers[TR_XY][write_index].b = b;
+
+            // TRYX
+            src_buffers[TR_YX][write_index].offset = 3 * (src_row + (LAMBDA - src_col) * width);
+            src_buffers[TR_YX][write_index].r = r;
+            src_buffers[TR_YX][write_index].g = g;
+            src_buffers[TR_YX][write_index].b = b;
+
+            // TLXY
+            src_buffers[TL_XY][write_index].offset = 3 * ((LAMBDA - src_col) + width * (LAMBDA - src_row));
+            src_buffers[TL_XY][write_index].r = r;
+            src_buffers[TL_XY][write_index].g = g;
+            src_buffers[TL_XY][write_index].b = b;
+
+            // TLYX
+            src_buffers[TL_YX][write_index].offset = 3 * ((LAMBDA - src_row) + width * (LAMBDA - src_col));
+            src_buffers[TL_YX][write_index].r = r;
+            src_buffers[TL_YX][write_index].g = g;
+            src_buffers[TL_YX][write_index].b = b;
+
+            // BLXY
+            src_buffers[BL_XY][write_index].offset = 3 * ((LAMBDA - src_col) + width * src_row);
+            src_buffers[BL_XY][write_index].r = r;
+            src_buffers[BL_XY][write_index].g = g;
+            src_buffers[BL_XY][write_index].b = b;
+
+            // BLYX
+            src_buffers[BL_YX][write_index].offset = 3 * ((LAMBDA - src_row) + width * src_col);
+            src_buffers[BL_YX][write_index].r = r;
+            src_buffers[BL_YX][write_index].g = g;
+            src_buffers[BL_YX][write_index].b = b;
+
+            write_index++;
+        }
+    }
     // Fill with white (can probably be optimized)
     int ws_len = total_buffer_size;
     while (ws_len-- > 0)
-        dest_buffer[ws_len] = 0xff;
-
-    // Used for building the rotated buffers.
-    unsigned char* temp_buffer = (unsigned char*) malloc(total_buffer_size);
+        frame_buffer[ws_len] = 0xff;
 
     int origin_x = 0, origin_y = 0;
     int unit_x_x = 1, unit_x_y = 0;
@@ -462,7 +304,7 @@ void implementation_driver(
         // TODO determine which to run in a more optimized way
         int src_buffer_offset_x_bytes;
         int src_buffer_offset_y_bytes;
-        dense_buffer_t* current_src_buffer;
+        segment_t* current_src_buffer;
 
         #ifdef DEBUGGING
             printf("%d %d %d %d\n", unit_x_x_dir, unit_x_y_dir, unit_y_x_dir, unit_y_y_dir);
@@ -472,19 +314,19 @@ void implementation_driver(
         {
             if (unit_y_y_dir > 0)
             {
-                if (!src_buffers[BR_XY])
-                    setupBufferBRXY(frame_buffer, &src_buffers[BR_XY], width);
-                
                 current_src_buffer = src_buffers[BR_XY];                
                 src_buffer_offset_y_bytes = origin_y_bytes;
+                #ifdef DEBUGGING
+                    printf("BR_XY\n");
+                #endif
             }
             else
             {
-                if (!src_buffers[TR_XY])
-                    setupBufferTRXY(frame_buffer, temp_buffer, &src_buffers[TR_XY], width);
-
                 current_src_buffer = src_buffers[TR_XY];
                 src_buffer_offset_y_bytes = origin_y_bytes - TRIPLE_WIDTH_LAMBDA;
+                #ifdef DEBUGGING
+                    printf("TR_XY\n");
+                #endif
             }
 
             src_buffer_offset_x_bytes = origin_x_bytes;
@@ -493,19 +335,19 @@ void implementation_driver(
         {
             if (unit_y_y_dir > 0)
             {
-                if (!src_buffers[BL_XY])
-                    setupBufferBLXY(frame_buffer, temp_buffer, &src_buffers[BL_XY], width);
-
+                #ifdef DEBUGGING
+                    printf("BL_XY\n");
+                #endif
                 current_src_buffer = src_buffers[BL_XY];
                 src_buffer_offset_y_bytes = origin_y_bytes;
             }
             else
             {
-                if (!src_buffers[TL_XY])
-                    setupBufferTLXY(frame_buffer, temp_buffer, &src_buffers[TL_XY], width);
-
                 current_src_buffer = src_buffers[TL_XY];
                 src_buffer_offset_y_bytes = origin_y_bytes - TRIPLE_WIDTH_LAMBDA;
+                #ifdef DEBUGGING
+                    printf("TL_XY\n");
+                #endif
             }
 
             src_buffer_offset_x_bytes = origin_x_bytes - TRIPLE_LAMBDA;
@@ -514,19 +356,19 @@ void implementation_driver(
         {
             if (unit_y_x_dir > 0)
             {
-                if (!src_buffers[BR_YX])
-                    setupBufferBRYX(frame_buffer, temp_buffer, &src_buffers[BR_YX], width);
-
                 current_src_buffer = src_buffers[BR_YX];
                 src_buffer_offset_x_bytes = origin_x_bytes;
+                #ifdef DEBUGGING
+                    printf("BR_YX\n");
+                #endif
             }
             else
             {
-                if (!src_buffers[BL_YX])
-                    setupBufferBLYX(frame_buffer, temp_buffer, &src_buffers[BL_YX], width);
-
                 current_src_buffer = src_buffers[BL_YX];
                 src_buffer_offset_x_bytes = origin_x_bytes - TRIPLE_LAMBDA;
+                #ifdef DEBUGGING
+                    printf("BL_YX\n");
+                #endif
             }
 
             src_buffer_offset_y_bytes = origin_y_bytes;
@@ -535,19 +377,19 @@ void implementation_driver(
         {
             if (unit_y_x_dir > 0)
             {
-                if (!src_buffers[TR_YX])
-                    setupBufferTRYX(frame_buffer, temp_buffer, &src_buffers[TR_YX], width);
-
                 current_src_buffer = src_buffers[TR_YX];
                 src_buffer_offset_x_bytes = origin_x_bytes;
+                #ifdef DEBUGGING
+                    printf("TR_YX\n");
+                #endif
             }
             else
             {
-                if (!src_buffers[TL_YX])
-                    setupBufferTLYX(frame_buffer, temp_buffer, &src_buffers[TL_YX], width);
-
                 current_src_buffer = src_buffers[TL_YX];                
                 src_buffer_offset_x_bytes = origin_x_bytes - TRIPLE_LAMBDA;
+                #ifdef DEBUGGING
+                    printf("TL_YX\n");
+                #endif
             }
 
             src_buffer_offset_y_bytes = origin_y_bytes - TRIPLE_WIDTH_LAMBDA;
@@ -560,32 +402,30 @@ void implementation_driver(
         int base_offset = src_buffer_offset_x_bytes + src_buffer_offset_y_bytes;
 
         // Copy the transformed dense structure with offset
-        int num_segments = current_src_buffer->length;
-        segment_t* segments = current_src_buffer->segments;
-        for (int i = 0; i < num_segments; ++i)
+        for (int i = 0; i < num_pixels; ++i)
         {
-            segment_t current_segment = segments[i];
+            segment_t current_segment = current_src_buffer[i];
 
             register int start = current_segment.offset + base_offset;
         
-            dest_buffer[start] = current_segment.r;
-            dest_buffer[start + 1] = current_segment.g;
-            dest_buffer[start + 2] = current_segment.b;
+            frame_buffer[start] = current_segment.r;
+            frame_buffer[start + 1] = current_segment.g;
+            frame_buffer[start + 2] = current_segment.b;
         }
-        
-        verifyFrame(dest_buffer, width, height, grading_mode);
+
+        verifyFrame(frame_buffer, width, height, grading_mode);
 
         if (frameIdx != frames_to_process - 1)
         {
-            for (int i = 0; i < num_segments; ++i)
+            for (int i = 0; i < num_pixels; ++i)
             {
-                segment_t current_segment = segments[i];
+                segment_t current_segment = current_src_buffer[i];
 
                 register int start = current_segment.offset + base_offset;
 
-                dest_buffer[start] = 0xff;
-                dest_buffer[start + 1] = 0xff;
-                dest_buffer[start + 2] = 0xff;
+                frame_buffer[start] = 0xff;
+                frame_buffer[start + 1] = 0xff;
+                frame_buffer[start + 2] = 0xff;
             }
         }
     }
@@ -597,11 +437,8 @@ void implementation_driver(
     for (int i = 0; i < 8; i++) 
     {
         if (src_buffers[i])
-            free(src_buffers[i]->segments);
-        free(src_buffers[i]);
+            free(src_buffers[i]);
     }
-    free(dest_buffer);
-    free(temp_buffer);
 
     return;
 }
