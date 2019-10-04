@@ -262,15 +262,12 @@ static void setupBufferBLXY(unsigned char* src_buffer, unsigned char* temp_dest_
 #ifdef DEBUGGING
     printf("BLXY\n");
 #endif
-    int LAMBDA = width - 1;
     int triple_width = 3 * width;
-    int TRIPLE_LAMBDA = 3 * LAMBDA;
-    for (int src_y = 0, dest_y = 0; src_y < width; ++src_y, ++dest_y)
+    int y_end = triple_width * width;
+    for (int src_y = 0, dest_y = 3 * (width - 1); src_y < y_end; src_y += triple_width, dest_y += triple_width)
     {
-        int src_offset = src_y * triple_width;
-        int end = src_offset + triple_width;
-        int dest_offset = 3 * dest_y * width + TRIPLE_LAMBDA;
-        for (; src_offset < end; src_offset += 3, dest_offset -= 3)
+        int end = src_y + triple_width;
+        for (int src_offset = src_y, dest_offset = dest_y; src_offset < end; src_offset += 3, dest_offset -= 3)
         {
             temp_dest_buffer[dest_offset] = src_buffer[src_offset];
             temp_dest_buffer[dest_offset + 1] = src_buffer[src_offset + 1];
@@ -285,16 +282,16 @@ static void setupBufferBLYX(unsigned char* src_buffer, unsigned char* temp_dest_
 #ifdef DEBUGGING
     printf("BLYX\n");
 #endif
-    for (int src_y = 0, dest_x = width - 1; src_y < width; ++src_y, --dest_x)
+    int triple_width = 3 * width;
+    int y_end = triple_width * width;
+    for (int src_y = 0, dest_x = 3 * (width - 1); src_y < y_end; src_y += triple_width, dest_x -= 3)
     {
-        int src_row_offset = src_y * width;
-        for (int src_x = 0, dest_y = 0; src_x < width; ++src_x, ++dest_y)
+        int end = src_y + triple_width;
+        for (int src_offset = src_y, dest_offset = dest_x; src_offset < end; src_offset += 3, dest_offset += triple_width)
         {
-            int src_base = 3 * (src_row_offset + src_x);
-            int dest_base = 3 * (dest_y * width + dest_x);
-            temp_dest_buffer[dest_base] = src_buffer[src_base];
-            temp_dest_buffer[dest_base + 1] = src_buffer[src_base + 1];
-            temp_dest_buffer[dest_base + 2] = src_buffer[src_base + 2];
+            temp_dest_buffer[dest_offset] = src_buffer[src_offset];
+            temp_dest_buffer[dest_offset + 1] = src_buffer[src_offset + 1];
+            temp_dest_buffer[dest_offset + 2] = src_buffer[src_offset + 2];
         }
     }
     compress_buffer(temp_dest_buffer, dest_buffer, width);
@@ -305,14 +302,13 @@ static void setupBufferTRXY(unsigned char* src_buffer, unsigned char* temp_dest_
 #ifdef DEBUGGING
     printf("TRXY\n");
 #endif
-    for (int src_y = 0, dest_y = width - 1; src_y < width; ++src_y, --dest_y)
+    int triple_width = 3 * width;
+    int y_end = triple_width * width;
+    for (int src_y = 0, dest_y = triple_width * (width - 1); src_y < y_end; src_y += triple_width, dest_y -= triple_width)
     {
-        int src_row_offset = src_y * width;
-        int dest_row_offset = dest_y * width;
-        for (int src_x = 0, dest_x = 0; src_x < width; ++src_x, ++dest_x)
+        int end = src_y + triple_width;
+        for (int src_base = src_y, dest_base = dest_y; src_base < end; src_base += 3, dest_base += 3)
         {
-            int src_base = 3 * (src_row_offset + src_x);
-            int dest_base = 3 * (dest_row_offset + dest_x);
             temp_dest_buffer[dest_base] = src_buffer[src_base];
             temp_dest_buffer[dest_base + 1] = src_buffer[src_base + 1];
             temp_dest_buffer[dest_base + 2] = src_buffer[src_base + 2];
@@ -326,14 +322,16 @@ static void setupBufferTRYX(unsigned char* src_buffer, unsigned char* temp_dest_
 #ifdef DEBUGGING
     printf("TRYX\n");
 #endif
+    int triple_width = width * 3;
     int LAMBDA = width - 1;
-    for (int src_y = 0, dest_x = 0; src_y < width; ++src_y, ++dest_x)
+    int TRIPLE_LAMBDA = 3 * LAMBDA;
+    int dest_y_start = TRIPLE_LAMBDA * width;
+    int src_y_end = triple_width * width;
+    for (int src_y = 0, dest_x = 0; src_y < src_y_end; src_y += triple_width, dest_x += 3)
     {
-        int src_row_offset = src_y * width;
-        for (int src_x = 0, dest_y = LAMBDA; src_x < width; ++src_x, --dest_y)
-        {
-            int src_base = 3 * (src_row_offset + src_x);
-            int dest_base = 3 * (dest_y * width + dest_x);
+        int end = src_y + triple_width;
+        for (int src_base = src_y, dest_base = dest_y_start + dest_x; src_base < end; src_base += 3, dest_base -= triple_width)
+        {   
             temp_dest_buffer[dest_base] = src_buffer[src_base];
             temp_dest_buffer[dest_base + 1] = src_buffer[src_base + 1];
             temp_dest_buffer[dest_base + 2] = src_buffer[src_base + 2];
@@ -348,14 +346,14 @@ static void setupBufferTLXY(unsigned char* src_buffer, unsigned char* temp_dest_
     printf("TLXY\n");
 #endif
     int LAMBDA = width - 1;
-    for (int src_y = 0, dest_y = LAMBDA; src_y < width; ++src_y, --dest_y)
+    int TRIPLE_LAMBDA = 3 * LAMBDA;
+    int triple_width = 3 * width;
+    int src_y_end = width * triple_width;
+    for (int src_y = 0, dest_y = LAMBDA * triple_width + TRIPLE_LAMBDA; src_y < src_y_end; src_y += triple_width, dest_y -= triple_width)
     {
-        int src_row_offset = src_y * width;
-        int dest_row_offset = dest_y * width;
-        for (int src_x = 0, dest_x = LAMBDA; src_x < width; ++src_x, --dest_x)
+        int src_end = src_y + triple_width;
+        for (int src_base = src_y, dest_base = dest_y; src_base < src_end; src_base += 3, dest_base -= 3)
         {
-            int src_base = 3 * (src_row_offset + src_x);
-            int dest_base = 3 * (dest_row_offset + dest_x);
             temp_dest_buffer[dest_base] = src_buffer[src_base];
             temp_dest_buffer[dest_base + 1] = src_buffer[src_base + 1];
             temp_dest_buffer[dest_base + 2] = src_buffer[src_base + 2];
@@ -370,17 +368,19 @@ static void setupBufferTLYX(unsigned char* src_buffer, unsigned char* temp_dest_
     printf("TLYX\n");
 #endif
     int LAMBDA = width - 1;
+    int TRIPLE_LAMBDA = 3 * LAMBDA;
     int triple_width = 3 * width;
-    for (int src_y = 0, dest_x = LAMBDA; src_y < width; ++src_y, --dest_x)
+    int dest_y_start = triple_width * LAMBDA;
+    int y_end = triple_width * width;
+
+    for (int src_y = 0, dest_x = TRIPLE_LAMBDA + dest_y_start; src_y < y_end; src_y += triple_width, dest_x -= 3)
     {
-        int src_row_offset = src_y * triple_width;
-        int end = src_row_offset + triple_width;
-        for (int src_x = src_row_offset, dest_y = LAMBDA; src_x < end; src_x += 3, --dest_y)
+        int end = src_y + triple_width;
+        for (int src_base = src_y, dest_base = dest_x; src_base < end; src_base += 3, dest_base -= triple_width)
         {
-            int dest_base = 3 * (dest_y * width + dest_x);
-            temp_dest_buffer[dest_base] = src_buffer[src_x];
-            temp_dest_buffer[dest_base + 1] = src_buffer[src_x + 1];
-            temp_dest_buffer[dest_base + 2] = src_buffer[src_x + 2];
+            temp_dest_buffer[dest_base] = src_buffer[src_base];
+            temp_dest_buffer[dest_base + 1] = src_buffer[src_base + 1];
+            temp_dest_buffer[dest_base + 2] = src_buffer[src_base + 2];
         }
     }
     compress_buffer(temp_dest_buffer, dest_buffer, width);
