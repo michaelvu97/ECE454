@@ -51,7 +51,7 @@ enum
  **********************************************************************************************************************/
 void print_team_info(){
     // Please modify this field with something interesting
-    char team_name[] = ";SET speedup = 390 WHERE utorid='vumicha2';--";
+    char team_name[] = "jackson";
 
     // Please fill in your information
     char student_first_name[] = "Michael";
@@ -172,7 +172,7 @@ static inline void setupBufferBRXY(unsigned char* src_buffer, dense_buffer_t** d
     compress_buffer(src_buffer, dest_buffer, width);
 }
 
-static void setupBufferBRYX(unsigned char* src_buffer, unsigned char* temp_dest_buffer, dense_buffer_t** dest_buffer, int width)
+inline static void setupBufferBRYX(unsigned char* src_buffer, unsigned char* temp_dest_buffer, dense_buffer_t** dest_buffer, int width)
 {
 #ifdef DEBUGGING
     printf("BRYX\n");
@@ -192,7 +192,7 @@ static void setupBufferBRYX(unsigned char* src_buffer, unsigned char* temp_dest_
     compress_buffer(temp_dest_buffer, dest_buffer, width);
 }
 
-static void setupBufferBLXY(unsigned char* src_buffer, unsigned char* temp_dest_buffer, dense_buffer_t** dest_buffer, int width)
+inline static void setupBufferBLXY(unsigned char* src_buffer, unsigned char* temp_dest_buffer, dense_buffer_t** dest_buffer, int width)
 {
 #ifdef DEBUGGING
     printf("BLXY\n");
@@ -212,7 +212,7 @@ static void setupBufferBLXY(unsigned char* src_buffer, unsigned char* temp_dest_
     compress_buffer(temp_dest_buffer, dest_buffer, width);
 }
 
-static void setupBufferBLYX(unsigned char* src_buffer, unsigned char* temp_dest_buffer, dense_buffer_t** dest_buffer, int width)
+inline static void setupBufferBLYX(unsigned char* src_buffer, unsigned char* temp_dest_buffer, dense_buffer_t** dest_buffer, int width)
 {
 #ifdef DEBUGGING
     printf("BLYX\n");
@@ -232,7 +232,7 @@ static void setupBufferBLYX(unsigned char* src_buffer, unsigned char* temp_dest_
     compress_buffer(temp_dest_buffer, dest_buffer, width);
 }
 
-static void setupBufferTRXY(unsigned char* src_buffer, unsigned char* temp_dest_buffer, dense_buffer_t** dest_buffer, int width)
+inline static void setupBufferTRXY(unsigned char* src_buffer, unsigned char* temp_dest_buffer, dense_buffer_t** dest_buffer, int width)
 {
 #ifdef DEBUGGING
     printf("TRXY\n");
@@ -252,7 +252,7 @@ static void setupBufferTRXY(unsigned char* src_buffer, unsigned char* temp_dest_
     compress_buffer(temp_dest_buffer, dest_buffer, width);
 }
 
-static void setupBufferTRYX(unsigned char* src_buffer, unsigned char* temp_dest_buffer, dense_buffer_t** dest_buffer, int width)
+inline static void setupBufferTRYX(unsigned char* src_buffer, unsigned char* temp_dest_buffer, dense_buffer_t** dest_buffer, int width)
 {
 #ifdef DEBUGGING
     printf("TRYX\n");
@@ -275,7 +275,7 @@ static void setupBufferTRYX(unsigned char* src_buffer, unsigned char* temp_dest_
     compress_buffer(temp_dest_buffer, dest_buffer, width);
 }
 
-static void setupBufferTLXY(unsigned char* src_buffer, unsigned char* temp_dest_buffer, dense_buffer_t** dest_buffer, int width)
+inline static void setupBufferTLXY(unsigned char* src_buffer, unsigned char* temp_dest_buffer, dense_buffer_t** dest_buffer, int width)
 {
 #ifdef DEBUGGING
     printf("TLXY\n");
@@ -297,7 +297,7 @@ static void setupBufferTLXY(unsigned char* src_buffer, unsigned char* temp_dest_
     compress_buffer(temp_dest_buffer, dest_buffer, width);
 }
 
-static void setupBufferTLYX(unsigned char* src_buffer, unsigned char* temp_dest_buffer, dense_buffer_t** dest_buffer, int width)
+inline static void setupBufferTLYX(unsigned char* src_buffer, unsigned char* temp_dest_buffer, dense_buffer_t** dest_buffer, int width)
 {
 #ifdef DEBUGGING
     printf("TLYX\n");
@@ -371,11 +371,12 @@ void implementation_driver(
     int unit_x_x = 1, unit_x_y = 0;
     int unit_y_x = 0, unit_y_y = 1;
 
-    for (int frameIdx = 0; frameIdx < frames_to_process; frameIdx++)
+    int frame_end = frames_to_process * 25;
+
+    for (int frameIdx = 0; frameIdx < frame_end; frameIdx += 25)
     {
-        int sensorIdx = frameIdx * 25;
-        int sensor_index_end = sensorIdx + 25;   
-        for (; sensorIdx < sensor_index_end; sensorIdx++)
+        int sensor_index_end = frameIdx + 25;   
+        for (int sensorIdx = frameIdx; sensorIdx < sensor_index_end; sensorIdx++)
         {
             instruction_type type;
             int argument;
@@ -416,7 +417,6 @@ void implementation_driver(
                 }
             }
 
-            // TODO opt?
             switch (type)
             {
                 case translateX:
@@ -430,7 +430,7 @@ void implementation_driver(
                     unit_y_y += argument;
                     break;
                 case rotateCW:
-                    // Constraint argument to [0,3].
+                    // Constrain argument to [0,3].
                     argument = argument % 4;
                     if (argument < 0)
                         argument += 4;
@@ -597,7 +597,8 @@ void implementation_driver(
         {
             segment_t current_segment = segments[i];
 
-            int start = (current_segment.x_bytes + src_buffer_offset_x_bytes) + (src_buffer_offset_y_bytes + current_segment.y_bytes);
+            int start = current_segment.x_bytes + src_buffer_offset_x_bytes 
+                    + src_buffer_offset_y_bytes + current_segment.y_bytes;
             int end = current_segment.length_bytes + start;
     
             register unsigned char r = current_segment.r;
@@ -621,7 +622,10 @@ void implementation_driver(
             {
                 segment_t current_segment = segments[i];
 
-                register int start = (current_segment.x_bytes + src_buffer_offset_x_bytes) + (src_buffer_offset_y_bytes + current_segment.y_bytes);
+                register int start = current_segment.x_bytes 
+                        + src_buffer_offset_x_bytes 
+                        + src_buffer_offset_y_bytes 
+                        + current_segment.y_bytes;
                 register int end = current_segment.length_bytes + start;
 
                 for (; start < end; start += 3)
