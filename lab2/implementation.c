@@ -45,11 +45,6 @@ enum
     BL_YX = 7
 };
 
-typedef struct {
-    instruction_type type;
-    int argument; // Used by translateX,Y and rotateCW
-} instruction;
-
 /***********************************************************************************************************************
  * WARNING: Do not modify the implementation_driver and team info prototype (name, parameter, return value) !!!
  *          Do not forget to modify the team_name and team member information !!!
@@ -70,64 +65,6 @@ void print_team_info(){
     printf("\tstudent_first_name: %s\n", student_first_name);
     printf("\tstudent_last_name: %s\n", student_last_name);
     printf("\tstudent_student_number: %s\n", student_student_number);
-}
-
-static inline instruction parse_sensor_value(struct kv sensor_value)
-{
-    instruction instr;
-    instr.type = none;
-    instr.argument = 0;
-
-    char* key = sensor_value.key;
-
-    char first = *key;
-    if (first == 'M'){
-        if (key[1] == 'X')
-            instr.type = mirrorX;
-        else 
-            instr.type = mirrorY;
-
-        return instr;
-    }
-
-    int value = sensor_value.value;
-
-    if (first == 'C')
-    {
-        instr.type = rotateCW;
-
-        // Rotation
-        if (key[1] == 'C')
-            // Counter-clockwise
-            instr.argument = -1 * value;
-        else
-            // Clockwise
-            instr.argument = value;
-
-        return instr;
-    }
-
-    instr.type = translateX;
-
-    switch (first)
-    {
-        case 'W':
-            instr.type = translateY;
-            instr.argument = -1 * value;
-            break;
-        case 'S':
-            instr.type = translateY;
-            instr.argument = value;
-            break;
-        case 'D':
-            instr.argument = value;
-            break;
-        case 'A':
-            instr.argument = -1 * value;
-            break;
-    }
-
-    return instr;
 }
 
 /*
@@ -211,9 +148,9 @@ static void compress_buffer(unsigned char* src_buffer, dense_buffer_t** dest_buf
             register unsigned char curr_b = temp_dest_buffer[write_index].b = src_buffer[src_offset + 2];
 
             // Seek until the we reach the end of the row or a different coloured pixel
-            int seek_offset_bytes_total = 3 + src_offset;
+            register int seek_offset_bytes_total = 3 + src_offset;
+            int end = triple_width - curr_col_byte + src_offset;
 
-            int end = triple_width - curr_col_byte  + src_offset;
             while (seek_offset_bytes_total < end 
                 && src_buffer[seek_offset_bytes_total] == curr_r 
                 && src_buffer[seek_offset_bytes_total + 1] == curr_g
@@ -435,35 +372,70 @@ void implementation_driver(
     int unit_y_x = 0, unit_y_y = 1;
 
     for (int frameIdx = 0; frameIdx < frames_to_process; frameIdx++)
-    {   
-        for (int sensorIdx = 0; sensorIdx < 25; sensorIdx++)
+    {
+        int sensorIdx = frameIdx * 25;
+        int sensor_index_end = sensorIdx + 25;   
+        for (; sensorIdx < sensor_index_end; sensorIdx++)
         {
-            instruction instr = parse_sensor_value(
-                sensor_values[frameIdx * 25 + sensorIdx]
-            );
+            instruction_type type;
+            int argument;
 
-            int val = instr.argument;
+            // TODO: unroll further?
+            char* key = sensor_values[sensorIdx].key;
+
+            char first = *key;
+            if (first == 'M'){
+                if (key[1] == 'X')
+                    type = mirrorX;
+                else 
+                    type = mirrorY;
+            } else {
+                argument = sensor_values[sensorIdx].value;
+                if (first == 'C')
+                {
+                    type = rotateCW;
+
+                    // Rotation
+                    if (key[1] == 'C')
+                        // Counter-clockwise
+                        argument = -1 * argument;
+                } else {
+                    switch (first)
+                    {
+                        case 'W':
+                            argument = -1 * argument;
+                        case 'S':
+                            type = translateY;
+                            break;
+                        case 'A':
+                            argument = -1 * argument;
+                        case 'D':
+                            type = translateX;
+                            break;
+                    }
+                }
+            }
 
             // TODO opt?
-            switch (instr.type)
+            switch (type)
             {
                 case translateX:
-                    origin_x += val;
-                    unit_x_x += val;
-                    unit_y_x += val;
+                    origin_x += argument;
+                    unit_x_x += argument;
+                    unit_y_x += argument;
                     break;
                 case translateY:
-                    origin_y += val;
-                    unit_x_y += val;
-                    unit_y_y += val;
+                    origin_y += argument;
+                    unit_x_y += argument;
+                    unit_y_y += argument;
                     break;
                 case rotateCW:
-                    // Constraint val to [0,3].
-                    val = val % 4;
-                    if (val < 0)
-                        val += 4;
+                    // Constraint argument to [0,3].
+                    argument = argument % 4;
+                    if (argument < 0)
+                        argument += 4;
                     
-                    if (val == 2)
+                    if (argument == 2)
                     {
                         origin_x = LAMBDA - origin_x;
                         origin_y = LAMBDA - origin_y;
@@ -478,7 +450,7 @@ void implementation_driver(
                         temp_unit_x_x = unit_x_x, 
                         temp_unit_y_x = unit_y_x;
 
-                        if (val == 1)
+                        if (argument == 1)
                         {
                             origin_x = LAMBDA - origin_y;
                             origin_y = temp_origin_x;
@@ -486,7 +458,7 @@ void implementation_driver(
                             unit_x_y = temp_unit_x_x;
                             unit_y_x = LAMBDA - unit_y_y;
                             unit_y_y = temp_unit_y_x;
-                        } else if (val == 3)
+                        } else if (argument == 3)
                         {
                             origin_x = origin_y;
                             origin_y = LAMBDA - temp_origin_x;
@@ -649,8 +621,8 @@ void implementation_driver(
             {
                 segment_t current_segment = segments[i];
 
-                int start = (current_segment.x_bytes + src_buffer_offset_x_bytes) + (src_buffer_offset_y_bytes + current_segment.y_bytes);
-                int end = current_segment.length_bytes + start;
+                register int start = (current_segment.x_bytes + src_buffer_offset_x_bytes) + (src_buffer_offset_y_bytes + current_segment.y_bytes);
+                register int end = current_segment.length_bytes + start;
 
                 for (; start < end; start += 3)
                 {
