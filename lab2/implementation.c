@@ -209,28 +209,33 @@ void implementation_driver(
             ++temp_src_blyx;
         }
     }
-    // Fill with white (can probably be optimized)
-    unsigned char* frame_buffer_iter_temp = frame_buffer + total_buffer_size - 1;
-    do 
-        *frame_buffer_iter_temp = 0xff;
-    while (--frame_buffer_iter_temp >= frame_buffer);
-
+    // Fill with white
+    if (true)
+    {
+        register unsigned char* end = frame_buffer;
+        register unsigned char* frame_buffer_iter_temp = frame_buffer + total_buffer_size - 1;
+        do 
+            *frame_buffer_iter_temp = 0xff;
+        while (--frame_buffer_iter_temp >= end);
+    }
     int origin_x = 0, origin_y = 0;
     int unit_x_x = 1, unit_x_y = 0;
     int unit_y_x = 0, unit_y_y = 1;
 
     int frame_end = frames_to_process * 25;
 
+
+
     for (int frameIdx = 0; frameIdx < frame_end; frameIdx += 25)
     {
-        int sensor_index_end = frameIdx + 25;   
-        for (int sensorIdx = frameIdx; sensorIdx < sensor_index_end; sensorIdx++)
+        struct kv* sensor_index_end = sensor_values + 25;  
+        for (; sensor_values != sensor_index_end; ++sensor_values)
         {
             unsigned char type;
             int argument;
 
             // TODO: unroll further?
-            char* key = sensor_values[sensorIdx].key;
+            char* key = sensor_values->key;
 
             char first = *key;
             if (first == 'M'){
@@ -239,7 +244,7 @@ void implementation_driver(
                 else 
                     type = INSTR_mirrorY;
             } else {
-                argument = sensor_values[sensorIdx].value;
+                argument = sensor_values->value;
                 if (first == 'C')
                 {
                     type = INSTR_rotateCW;
@@ -441,8 +446,8 @@ void implementation_driver(
         int base_offset = src_buffer_offset_x_bytes + src_buffer_offset_y_bytes;
 
         // Copy the transformed dense structure with offset
-        segment_t* current_src_buffer_iter = current_src_buffer;
-        segment_t* current_src_buffer_iter_end = current_src_buffer_iter + num_pixels;
+        register segment_t* current_src_buffer_iter = current_src_buffer;
+        register segment_t* current_src_buffer_iter_end = current_src_buffer_iter + num_pixels;
         while (current_src_buffer_iter < current_src_buffer_iter_end)
         {
             segment_t current_segment = *current_src_buffer_iter;
