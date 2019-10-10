@@ -88,6 +88,7 @@ void implementation_driver(
     int num_pixels = 0;
     for (int i = 0; i < total_buffer_size; i += 3)
     {
+
         // TODO opt
         if (frame_buffer[i] == 0xff
             && frame_buffer[i + 1] == 0xff
@@ -426,30 +427,33 @@ void implementation_driver(
         int base_offset = src_buffer_offset_x_bytes + src_buffer_offset_y_bytes;
 
         // Copy the transformed dense structure with offset
-        for (int i = 0; i < num_pixels; ++i)
+        segment_t* current_src_buffer_iter = current_src_buffer;
+        segment_t* current_src_buffer_iter_end = current_src_buffer_iter + num_pixels;
+        while (current_src_buffer_iter < current_src_buffer_iter_end)
         {
-            segment_t current_segment = current_src_buffer[i];
-
+            segment_t current_segment = *current_src_buffer_iter;
             register int start = current_segment.offset + base_offset;
         
             frame_buffer[start] = current_segment.r;
             frame_buffer[start + 1] = current_segment.g;
             frame_buffer[start + 2] = current_segment.b;
+            current_src_buffer_iter++;
         }
 
         verifyFrame(frame_buffer, width, height, grading_mode);
 
         if (frameIdx != frames_to_process - 1)
         {
-            for (int i = 0; i < num_pixels; ++i)
+            current_src_buffer_iter = current_src_buffer;
+            while (current_src_buffer_iter < current_src_buffer_iter_end)
             {
-                segment_t current_segment = current_src_buffer[i];
-
-                register int start = current_segment.offset + base_offset;
+                register int start = current_src_buffer_iter->offset + base_offset;
 
                 frame_buffer[start] = 0xff;
                 frame_buffer[start + 1] = 0xff;
                 frame_buffer[start + 2] = 0xff;
+
+                current_src_buffer_iter++;
             }
         }
     }
