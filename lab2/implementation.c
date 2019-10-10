@@ -107,7 +107,14 @@ void implementation_driver(
         src_buffers[i] = (segment_t*) malloc(sizeof(segment_t) * num_pixels);
     }
 
-    int write_index = 0;
+    segment_t* temp_src_brxy = src_buffers[BR_XY];
+    segment_t* temp_src_bryx = src_buffers[BR_YX];
+    segment_t* temp_src_blxy = src_buffers[BL_XY];
+    segment_t* temp_src_blyx = src_buffers[BL_YX];
+    segment_t* temp_src_trxy = src_buffers[TR_XY];
+    segment_t* temp_src_tryx = src_buffers[TR_YX];
+    segment_t* temp_src_tlxy = src_buffers[TL_XY];
+    segment_t* temp_src_tlyx = src_buffers[TL_YX];
 
     for (
         int src_row = 0,
@@ -146,60 +153,67 @@ void implementation_driver(
             // TODO reduce multiplication
 
             // BRXY
-            src_buffers[BR_XY][write_index].offset = src_base;
-            src_buffers[BR_XY][write_index].r = r;
-            src_buffers[BR_XY][write_index].g = g;
-            src_buffers[BR_XY][write_index].b = b;
+            temp_src_brxy->offset = src_base;
+            temp_src_brxy->r = r;
+            temp_src_brxy->g = g;
+            temp_src_brxy->b = b;
+            ++temp_src_brxy;
 
             // BRYX
-            src_buffers[BR_YX][write_index].offset = col_width + src_row;
-            src_buffers[BR_YX][write_index].r = r;
-            src_buffers[BR_YX][write_index].g = g;
-            src_buffers[BR_YX][write_index].b = b;
+            temp_src_bryx->offset = col_width + src_row;
+            temp_src_bryx->r = r;
+            temp_src_bryx->g = g;
+            temp_src_bryx->b = b;
+            ++temp_src_bryx;
 
             // TRXY
-            src_buffers[TR_XY][write_index].offset = inverse_row_width + src_col;
-            src_buffers[TR_XY][write_index].r = r; 
-            src_buffers[TR_XY][write_index].g = g;
-            src_buffers[TR_XY][write_index].b = b;
+            temp_src_trxy->offset = inverse_row_width + src_col;
+            temp_src_trxy->r = r; 
+            temp_src_trxy->g = g;
+            temp_src_trxy->b = b;
+            ++temp_src_trxy;
 
             // TRYX
-            src_buffers[TR_YX][write_index].offset = src_row + inverse_col_width;
-            src_buffers[TR_YX][write_index].r = r;
-            src_buffers[TR_YX][write_index].g = g;
-            src_buffers[TR_YX][write_index].b = b;
+            temp_src_tryx->offset = src_row + inverse_col_width;
+            temp_src_tryx->r = r;
+            temp_src_tryx->g = g;
+            temp_src_tryx->b = b;
+            ++temp_src_tryx;
 
             // TLXY
-            src_buffers[TL_XY][write_index].offset = inverse_col + inverse_row_width;
-            src_buffers[TL_XY][write_index].r = r;
-            src_buffers[TL_XY][write_index].g = g;
-            src_buffers[TL_XY][write_index].b = b;
+            temp_src_tlxy->offset = inverse_col + inverse_row_width;
+            temp_src_tlxy->r = r;
+            temp_src_tlxy->g = g;
+            temp_src_tlxy->b = b;
+            ++temp_src_tlxy;
 
             // TLYX
-            src_buffers[TL_YX][write_index].offset = inverse_row + inverse_col_width;
-            src_buffers[TL_YX][write_index].r = r;
-            src_buffers[TL_YX][write_index].g = g;
-            src_buffers[TL_YX][write_index].b = b;
+            temp_src_tlyx->offset = inverse_row + inverse_col_width;
+            temp_src_tlyx->r = r;
+            temp_src_tlyx->g = g;
+            temp_src_tlyx->b = b;
+            ++temp_src_tlyx;
 
             // BLXY
-            src_buffers[BL_XY][write_index].offset = inverse_col + row_width;
-            src_buffers[BL_XY][write_index].r = r;
-            src_buffers[BL_XY][write_index].g = g;
-            src_buffers[BL_XY][write_index].b = b;
+            temp_src_blxy->offset = inverse_col + row_width;
+            temp_src_blxy->r = r;
+            temp_src_blxy->g = g;
+            temp_src_blxy->b = b;
+            ++temp_src_blxy;
 
             // BLYX
-            src_buffers[BL_YX][write_index].offset = inverse_row + col_width;
-            src_buffers[BL_YX][write_index].r = r;
-            src_buffers[BL_YX][write_index].g = g;
-            src_buffers[BL_YX][write_index].b = b;
-
-            write_index++;
+            temp_src_blyx->offset = inverse_row + col_width;
+            temp_src_blyx->r = r;
+            temp_src_blyx->g = g;
+            temp_src_blyx->b = b;
+            ++temp_src_blyx;
         }
     }
     // Fill with white (can probably be optimized)
-    int ws_len = total_buffer_size;
-    while (ws_len-- > 0)
-        frame_buffer[ws_len] = 0xff;
+    unsigned char* frame_buffer_iter_temp = frame_buffer + total_buffer_size - 1;
+    do 
+        *frame_buffer_iter_temp = 0xff;
+    while (--frame_buffer_iter_temp >= frame_buffer);
 
     int origin_x = 0, origin_y = 0;
     int unit_x_x = 1, unit_x_y = 0;
