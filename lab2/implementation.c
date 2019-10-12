@@ -13,6 +13,8 @@
 #define INSTR_mirrorX 4
 #define INSTR_mirrorY 5
 
+#define ISOLATED if (true)
+
 typedef struct 
 {
     int offset; // x_bytes + y_bytes.
@@ -54,6 +56,55 @@ void print_team_info(){
     printf("\tstudent_last_name: %s\n", student_last_name);
     printf("\tstudent_student_number: %s\n", student_student_number);
 }
+/*
+#define SEG_SIZE sizeof(segment_t)
+
+segment_t q_sort_swap_buffer[SEG_SIZE];
+
+static inline void qsort_swap(segment_t* v1, segment_t* v2) 
+{ 
+    memcpy(q_sort_swap_buffer, v1, SEG_SIZE); 
+    memcpy(v1, v2, SEG_SIZE); 
+    memcpy(v2, q_sort_swap_buffer, SEG_SIZE); 
+} 
+
+void sort(segment_t* segs, int left, int right)
+{
+    if (left >= right)
+        return;
+
+    segment_t* vl = segs + left;
+
+    qsort_swap(vl, segs + ((left + right) >> 1));
+    register int comparator = vl->offset;
+    register segment_t* v3 = segs + left;
+    register segment_t* end = segs + right;
+    int last = left;
+    for (register segment_t* vt = segs + left + 1; vt <= end; ++vt)
+    {
+        // L > T
+        if (comparator > vt->offset)
+        {
+            ++v3;
+            ++last;
+            qsort_swap(vt, v3);
+        }
+    }
+    qsort_swap(vl, v3);
+    sort(segs, left, last - 1);
+    sort(segs, last + 1, right);
+}
+
+static inline void qsortall(segment_t** segs, int num_pixels)
+{
+    sort(segs[BR_YX], 0, num_pixels - 1);
+    sort(segs[BL_XY], 0, num_pixels - 1);
+    sort(segs[BL_YX], 0, num_pixels - 1);
+    sort(segs[TR_XY], 0, num_pixels - 1);
+    sort(segs[TR_YX], 0, num_pixels - 1);
+    sort(segs[TL_XY], 0, num_pixels - 1);
+    sort(segs[TL_YX], 0, num_pixels - 1);
+}*/
 
 /***********************************************************************************************************************
  * WARNING: Do not modify the implementation_driver and team info prototype (name, parameter, return value) !!!
@@ -86,15 +137,19 @@ void implementation_driver(
 
 
     int num_pixels = 0;
-    for (int i = 0; i < total_buffer_size; i += 3)
+    ISOLATED
     {
-
-        // TODO opt
-        if (frame_buffer[i] == 0xff
-            && frame_buffer[i + 1] == 0xff
-            && frame_buffer[i + 2] == 0xff)
-            continue;
-        num_pixels++;
+        register int num_pixels_local = 0;
+        register unsigned char* iter_end = frame_buffer + total_buffer_size;
+        for (register unsigned char* iter = frame_buffer; iter != iter_end; iter += 3)
+        {
+            if (*iter == 0xff
+                && *(iter + 1) == 0xff
+                && *(iter + 2) == 0xff)
+                continue;
+            ++num_pixels_local;
+        }
+        num_pixels = num_pixels_local;
     }
 
     #ifdef DEBUGGING
@@ -209,8 +264,12 @@ void implementation_driver(
             ++temp_src_blyx;
         }
     }
+
+    // Sort buffers
+    // qsortall(src_buffers, num_pixels);
+
     // Fill with white
-    if (true)
+    ISOLATED
     {
         register unsigned char* end = frame_buffer;
         register unsigned char* frame_buffer_iter_temp = frame_buffer + total_buffer_size - 1;
@@ -218,13 +277,12 @@ void implementation_driver(
             *frame_buffer_iter_temp = 0xff;
         while (--frame_buffer_iter_temp >= end);
     }
+
     int origin_x = 0, origin_y = 0;
     int unit_x_x = 1, unit_x_y = 0;
-    int unit_y_x = 0, unit_y_y = 1;
+    int unit_y_x = 0, unit_y_y = 1; 
 
     int frame_end = frames_to_process * 25;
-
-
 
     for (int frameIdx = 0; frameIdx < frame_end; frameIdx += 25)
     {
@@ -448,15 +506,20 @@ void implementation_driver(
         // Copy the transformed dense structure with offset
         register segment_t* current_src_buffer_iter = current_src_buffer;
         register segment_t* current_src_buffer_iter_end = current_src_buffer_iter + num_pixels;
-        while (current_src_buffer_iter < current_src_buffer_iter_end)
+
+        ISOLATED
         {
-            segment_t current_segment = *current_src_buffer_iter;
-            register int start = current_segment.offset + base_offset;
-        
-            frame_buffer[start] = current_segment.r;
-            frame_buffer[start + 1] = current_segment.g;
-            frame_buffer[start + 2] = current_segment.b;
-            current_src_buffer_iter++;
+            register unsigned char* fbuf_start = base_offset + frame_buffer;
+            while (current_src_buffer_iter < current_src_buffer_iter_end)
+            {
+                register segment_t current_segment = *current_src_buffer_iter;
+                register unsigned char* start = current_segment.offset + fbuf_start;
+            
+                *start = current_segment.r;
+                *(start + 1) = current_segment.g;
+                *(start + 2) = current_segment.b;
+                current_src_buffer_iter++;
+            }
         }
 
         verifyFrame(frame_buffer, width, height, grading_mode);
@@ -464,15 +527,16 @@ void implementation_driver(
         if (frameIdx != frames_to_process - 1)
         {
             current_src_buffer_iter = current_src_buffer;
+            register unsigned char* fbuf_start = frame_buffer + base_offset;
             while (current_src_buffer_iter < current_src_buffer_iter_end)
             {
-                register int start = current_src_buffer_iter->offset + base_offset;
+                register unsigned char* curr_fbuf = fbuf_start + current_src_buffer_iter->offset;
 
-                frame_buffer[start] = 0xff;
-                frame_buffer[start + 1] = 0xff;
-                frame_buffer[start + 2] = 0xff;
+                *curr_fbuf = 0xff;
+                *(curr_fbuf + 1) = 0xff;
+                *(curr_fbuf + 2) = 0xff;
 
-                current_src_buffer_iter++;
+                ++current_src_buffer_iter;
             }
         }
     }
