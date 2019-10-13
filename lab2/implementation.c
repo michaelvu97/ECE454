@@ -5,7 +5,6 @@
 #include "utilities.h"  // DO NOT REMOVE this line
 #include "implementation_reference.h"   // DO NOT REMOVE this line
 
-// test:
 // #define DEBUGGING
 
 #define INSTR_translateX 1
@@ -13,6 +12,8 @@
 #define INSTR_rotateCW 3
 #define INSTR_mirrorX 4
 #define INSTR_mirrorY 5
+
+#define ISOLATED if (true)
 
 typedef struct 
 {
@@ -55,6 +56,55 @@ void print_team_info(){
     printf("\tstudent_last_name: %s\n", student_last_name);
     printf("\tstudent_student_number: %s\n", student_student_number);
 }
+/*
+#define SEG_SIZE sizeof(segment_t)
+
+segment_t q_sort_swap_buffer[SEG_SIZE];
+
+static inline void qsort_swap(segment_t* v1, segment_t* v2) 
+{ 
+    memcpy(q_sort_swap_buffer, v1, SEG_SIZE); 
+    memcpy(v1, v2, SEG_SIZE); 
+    memcpy(v2, q_sort_swap_buffer, SEG_SIZE); 
+} 
+
+void sort(segment_t* segs, int left, int right)
+{
+    if (left >= right)
+        return;
+
+    segment_t* vl = segs + left;
+
+    qsort_swap(vl, segs + ((left + right) >> 1));
+    register int comparator = vl->offset;
+    register segment_t* v3 = segs + left;
+    register segment_t* end = segs + right;
+    int last = left;
+    for (register segment_t* vt = segs + left + 1; vt <= end; ++vt)
+    {
+        // L > T
+        if (comparator > vt->offset)
+        {
+            ++v3;
+            ++last;
+            qsort_swap(vt, v3);
+        }
+    }
+    qsort_swap(vl, v3);
+    sort(segs, left, last - 1);
+    sort(segs, last + 1, right);
+}
+
+static inline void qsortall(segment_t** segs, int num_pixels)
+{
+    sort(segs[BR_YX], 0, num_pixels - 1);
+    sort(segs[BL_XY], 0, num_pixels - 1);
+    sort(segs[BL_YX], 0, num_pixels - 1);
+    sort(segs[TR_XY], 0, num_pixels - 1);
+    sort(segs[TR_YX], 0, num_pixels - 1);
+    sort(segs[TL_XY], 0, num_pixels - 1);
+    sort(segs[TL_YX], 0, num_pixels - 1);
+}*/
 
 /***********************************************************************************************************************
  * WARNING: Do not modify the implementation_driver and team info prototype (name, parameter, return value) !!!
@@ -87,15 +137,19 @@ void implementation_driver(
 
 
     int num_pixels = 0;
-    for (int i = 0; i < total_buffer_size; i += 3)
+    ISOLATED
     {
-
-        // TODO opt
-        if (frame_buffer[i] == 0xff
-            && frame_buffer[i + 1] == 0xff
-            && frame_buffer[i + 2] == 0xff)
-            continue;
-        num_pixels++;
+        register int num_pixels_local = 0;
+        register unsigned char* iter_end = frame_buffer + total_buffer_size;
+        for (register unsigned char* iter = frame_buffer; iter != iter_end; iter += 3)
+        {
+            if (*iter == 0xff
+                && *(iter + 1) == 0xff
+                && *(iter + 2) == 0xff)
+                continue;
+            ++num_pixels_local;
+        }
+        num_pixels = num_pixels_local;
     }
 
     #ifdef DEBUGGING
@@ -103,7 +157,7 @@ void implementation_driver(
     #endif
 
     segment_t* src_buffers[8];
-    for (register int i = 0; i != 8; i++)
+    for (int i = 0; i < 8; i++)
     {
         src_buffers[i] = (segment_t*) malloc(sizeof(segment_t) * num_pixels);
     }
@@ -123,7 +177,7 @@ void implementation_driver(
             inverse_row = TRIPLE_LAMBDA,
             inverse_row_width = TRIPLE_WIDTH_LAMBDA; 
 
-            src_row != triple_width;
+            src_row < triple_width;
 
             src_row += 3,
             row_width += triple_width,
@@ -136,7 +190,7 @@ void implementation_driver(
                 inverse_col = TRIPLE_LAMBDA,
                 inverse_col_width = TRIPLE_WIDTH_LAMBDA; 
 
-                src_col != triple_width; 
+                src_col < triple_width; 
 
                 src_col += 3, 
                 col_width += triple_width,
@@ -150,6 +204,8 @@ void implementation_driver(
 
             if (r == 0xff && g == 0xff && b == 0xff)
                 continue;
+
+            // TODO reduce multiplication
 
             // BRXY
             temp_src_brxy->offset = src_base;
@@ -208,38 +264,33 @@ void implementation_driver(
             ++temp_src_blyx;
         }
     }
-<<<<<<< HEAD
 
-=======
->>>>>>> parent of cb6d8bd... 730x: small improvments. Added useless qsort code
+    // Sort buffers
+    // qsortall(src_buffers, num_pixels);
+
     // Fill with white
-    if (true)
+    ISOLATED
     {
         register unsigned char* end = frame_buffer;
         register unsigned char* frame_buffer_iter_temp = frame_buffer + total_buffer_size - 1;
         do 
             *frame_buffer_iter_temp = 0xff;
-        while (frame_buffer_iter_temp-- != end);
+        while (--frame_buffer_iter_temp >= end);
     }
+
     int origin_x = 0, origin_y = 0;
     int unit_x_x = 1, unit_x_y = 0;
-    int unit_y_x = 0, unit_y_y = 1;
+    int unit_y_x = 0, unit_y_y = 1; 
 
     int frame_end = frames_to_process * 25;
 
-<<<<<<< HEAD
-    for (int frameIdx = 0; frameIdx != frame_end; frameIdx += 25)
-=======
-
-
     for (int frameIdx = 0; frameIdx < frame_end; frameIdx += 25)
->>>>>>> parent of cb6d8bd... 730x: small improvments. Added useless qsort code
     {
         struct kv* sensor_index_end = sensor_values + 25;  
         for (; sensor_values != sensor_index_end; ++sensor_values)
         {
             unsigned char type;
-            register int argument;
+            int argument;
 
             // TODO: unroll further?
             char* key = sensor_values->key;
@@ -259,17 +310,17 @@ void implementation_driver(
                     // Rotation
                     if (key[1] == 'C')
                         // Counter-clockwise
-                        argument *= -1;
+                        argument = -1 * argument;
                 } else {
                     switch (first)
                     {
                         case 'W':
-                            argument *= -1;
+                            argument = -1 * argument;
                         case 'S':
                             type = INSTR_translateY;
                             break;
                         case 'A':
-                            argument *= -1;
+                            argument = -1 * argument;
                         case 'D':
                             type = INSTR_translateX;
                             break;
@@ -352,8 +403,9 @@ void implementation_driver(
         int origin_x_bytes = 3 * origin_x;
         int origin_y_bytes = triple_width * origin_y;
 
-        int src_buffer_offset_x_bytes = origin_x_bytes;
-        int src_buffer_offset_y_bytes = origin_y_bytes;
+        // TODO determine which to run in a more optimized way
+        int src_buffer_offset_x_bytes;
+        int src_buffer_offset_y_bytes;
         segment_t* current_src_buffer;
 
         #ifdef DEBUGGING
@@ -365,6 +417,7 @@ void implementation_driver(
             if (unit_y_y_dir > 0)
             {
                 current_src_buffer = src_buffers[BR_XY];                
+                src_buffer_offset_y_bytes = origin_y_bytes;
                 #ifdef DEBUGGING
                     printf("BR_XY\n");
                 #endif
@@ -372,11 +425,13 @@ void implementation_driver(
             else
             {
                 current_src_buffer = src_buffers[TR_XY];
-                src_buffer_offset_y_bytes -= TRIPLE_WIDTH_LAMBDA;
+                src_buffer_offset_y_bytes = origin_y_bytes - TRIPLE_WIDTH_LAMBDA;
                 #ifdef DEBUGGING
                     printf("TR_XY\n");
                 #endif
             }
+
+            src_buffer_offset_x_bytes = origin_x_bytes;
         }
         else if (unit_x_x_dir < 0)
         {
@@ -386,22 +441,25 @@ void implementation_driver(
                     printf("BL_XY\n");
                 #endif
                 current_src_buffer = src_buffers[BL_XY];
+                src_buffer_offset_y_bytes = origin_y_bytes;
             }
             else
             {
                 current_src_buffer = src_buffers[TL_XY];
-                src_buffer_offset_y_bytes -= TRIPLE_WIDTH_LAMBDA;
+                src_buffer_offset_y_bytes = origin_y_bytes - TRIPLE_WIDTH_LAMBDA;
                 #ifdef DEBUGGING
                     printf("TL_XY\n");
                 #endif
             }
-            src_buffer_offset_x_bytes -= TRIPLE_LAMBDA;
+
+            src_buffer_offset_x_bytes = origin_x_bytes - TRIPLE_LAMBDA;
         }
         else if (unit_x_y_dir > 0)
         {
             if (unit_y_x_dir > 0)
             {
                 current_src_buffer = src_buffers[BR_YX];
+                src_buffer_offset_x_bytes = origin_x_bytes;
                 #ifdef DEBUGGING
                     printf("BR_YX\n");
                 #endif
@@ -409,17 +467,20 @@ void implementation_driver(
             else
             {
                 current_src_buffer = src_buffers[BL_YX];
-                src_buffer_offset_x_bytes -= TRIPLE_LAMBDA;
+                src_buffer_offset_x_bytes = origin_x_bytes - TRIPLE_LAMBDA;
                 #ifdef DEBUGGING
                     printf("BL_YX\n");
                 #endif
             }
+
+            src_buffer_offset_y_bytes = origin_y_bytes;
         }
         else
         {
             if (unit_y_x_dir > 0)
             {
                 current_src_buffer = src_buffers[TR_YX];
+                src_buffer_offset_x_bytes = origin_x_bytes;
                 #ifdef DEBUGGING
                     printf("TR_YX\n");
                 #endif
@@ -427,13 +488,13 @@ void implementation_driver(
             else
             {
                 current_src_buffer = src_buffers[TL_YX];                
-                src_buffer_offset_x_bytes -= TRIPLE_LAMBDA;
+                src_buffer_offset_x_bytes = origin_x_bytes - TRIPLE_LAMBDA;
                 #ifdef DEBUGGING
                     printf("TL_YX\n");
                 #endif
             }
 
-            src_buffer_offset_y_bytes -= TRIPLE_WIDTH_LAMBDA;
+            src_buffer_offset_y_bytes = origin_y_bytes - TRIPLE_WIDTH_LAMBDA;
         }
 
         #ifdef DEBUGGING
@@ -445,11 +506,11 @@ void implementation_driver(
         // Copy the transformed dense structure with offset
         register segment_t* current_src_buffer_iter = current_src_buffer;
         register segment_t* current_src_buffer_iter_end = current_src_buffer_iter + num_pixels;
-        while (current_src_buffer_iter < current_src_buffer_iter_end)
+
+        ISOLATED
         {
-<<<<<<< HEAD
             register unsigned char* fbuf_start = base_offset + frame_buffer;
-            while (current_src_buffer_iter != current_src_buffer_iter_end)
+            while (current_src_buffer_iter < current_src_buffer_iter_end)
             {
                 register segment_t current_segment = *current_src_buffer_iter;
                 register unsigned char* start = current_segment.offset + fbuf_start;
@@ -459,15 +520,6 @@ void implementation_driver(
                 *(start + 2) = current_segment.b;
                 current_src_buffer_iter++;
             }
-=======
-            segment_t current_segment = *current_src_buffer_iter;
-            register int start = current_segment.offset + base_offset;
-        
-            frame_buffer[start] = current_segment.r;
-            frame_buffer[start + 1] = current_segment.g;
-            frame_buffer[start + 2] = current_segment.b;
-            current_src_buffer_iter++;
->>>>>>> parent of cb6d8bd... 730x: small improvments. Added useless qsort code
         }
 
         verifyFrame(frame_buffer, width, height, grading_mode);
@@ -475,20 +527,16 @@ void implementation_driver(
         if (frameIdx != frames_to_process - 1)
         {
             current_src_buffer_iter = current_src_buffer;
-<<<<<<< HEAD
             register unsigned char* fbuf_start = frame_buffer + base_offset;
-            while (current_src_buffer_iter != current_src_buffer_iter_end)
-=======
             while (current_src_buffer_iter < current_src_buffer_iter_end)
->>>>>>> parent of cb6d8bd... 730x: small improvments. Added useless qsort code
             {
-                register int start = current_src_buffer_iter->offset + base_offset;
+                register unsigned char* curr_fbuf = fbuf_start + current_src_buffer_iter->offset;
 
-                frame_buffer[start] = 0xff;
-                frame_buffer[start + 1] = 0xff;
-                frame_buffer[start + 2] = 0xff;
+                *curr_fbuf = 0xff;
+                *(curr_fbuf + 1) = 0xff;
+                *(curr_fbuf + 2) = 0xff;
 
-                current_src_buffer_iter++;
+                ++current_src_buffer_iter;
             }
         }
     }
@@ -499,7 +547,8 @@ void implementation_driver(
 
     for (int i = 0; i < 8; i++) 
     {
-        free(src_buffers[i]);
+        if (src_buffers[i])
+            free(src_buffers[i]);
     }
 
     return;
