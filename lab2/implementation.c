@@ -21,6 +21,8 @@ typedef struct
     unsigned char r;
     unsigned char g;
     unsigned char b;
+    unsigned char _extra;
+    //int color; // r & g << 8 & b << 16???
 } segment_t;
 
 enum 
@@ -162,14 +164,14 @@ void implementation_driver(
         src_buffers[i] = (segment_t*) malloc(sizeof(segment_t) * num_pixels);
     }
 
-    segment_t* temp_src_brxy = src_buffers[BR_XY];
-    segment_t* temp_src_bryx = src_buffers[BR_YX];
-    segment_t* temp_src_blxy = src_buffers[BL_XY];
-    segment_t* temp_src_blyx = src_buffers[BL_YX];
-    segment_t* temp_src_trxy = src_buffers[TR_XY];
-    segment_t* temp_src_tryx = src_buffers[TR_YX];
-    segment_t* temp_src_tlxy = src_buffers[TL_XY];
-    segment_t* temp_src_tlyx = src_buffers[TL_YX];
+    long* temp_src_brxy = (long*) src_buffers[BR_XY];
+    long* temp_src_bryx = (long*) src_buffers[BR_YX];
+    long* temp_src_blxy = (long*) src_buffers[BL_XY];
+    long* temp_src_blyx = (long*) src_buffers[BL_YX];
+    long* temp_src_trxy = (long*) src_buffers[TR_XY];
+    long* temp_src_tryx = (long*) src_buffers[TR_YX];
+    long* temp_src_tlxy = (long*) src_buffers[TL_XY];
+    long* temp_src_tlyx = (long*) src_buffers[TL_YX];
 
     ISOLATED
     {
@@ -202,6 +204,9 @@ void implementation_driver(
                     inverse_col_width -= triple_width,
                     frame_buffer_iter += 3)
             {
+                #define WRITE_TO_SEG(addr, offset, color) \
+                    *(addr++) = color | offset;
+
                 register unsigned char r = *frame_buffer_iter;
                 register unsigned char g = *(frame_buffer_iter + 1);
                 register unsigned char b = *(frame_buffer_iter + 2);
@@ -209,61 +214,31 @@ void implementation_driver(
                 if (r == 0xff && g == 0xff && b == 0xff)
                     continue;
 
+                register long combined_color = ((long) (r | (g << 8) | (b << 16))) << 32;
+
                 // BRXY
-                temp_src_brxy->offset = row_width + src_col;
-                temp_src_brxy->r = r;
-                temp_src_brxy->g = g;
-                temp_src_brxy->b = b;
-                ++temp_src_brxy;
+                WRITE_TO_SEG(temp_src_brxy, row_width + src_col, combined_color)
 
                 // BRYX
-                temp_src_bryx->offset = col_width + src_row;
-                temp_src_bryx->r = r;
-                temp_src_bryx->g = g;
-                temp_src_bryx->b = b;
-                ++temp_src_bryx;
+                WRITE_TO_SEG(temp_src_bryx, col_width + src_row, combined_color)
 
                 // TRXY
-                temp_src_trxy->offset = inverse_row_width + src_col;
-                temp_src_trxy->r = r; 
-                temp_src_trxy->g = g;
-                temp_src_trxy->b = b;
-                ++temp_src_trxy;
+                WRITE_TO_SEG(temp_src_trxy, inverse_row_width + src_col, combined_color)
 
                 // TRYX
-                temp_src_tryx->offset = src_row + inverse_col_width;
-                temp_src_tryx->r = r;
-                temp_src_tryx->g = g;
-                temp_src_tryx->b = b;
-                ++temp_src_tryx;
+                WRITE_TO_SEG(temp_src_tryx, src_row + inverse_col_width, combined_color)
 
                 // TLXY
-                temp_src_tlxy->offset = inverse_col + inverse_row_width;
-                temp_src_tlxy->r = r;
-                temp_src_tlxy->g = g;
-                temp_src_tlxy->b = b;
-                ++temp_src_tlxy;
+                WRITE_TO_SEG(temp_src_tlxy, inverse_col + inverse_row_width, combined_color)
 
                 // TLYX
-                temp_src_tlyx->offset = inverse_row + inverse_col_width;
-                temp_src_tlyx->r = r;
-                temp_src_tlyx->g = g;
-                temp_src_tlyx->b = b;
-                ++temp_src_tlyx;
+                WRITE_TO_SEG(temp_src_tlyx, inverse_row + inverse_col_width, combined_color)
 
                 // BLXY
-                temp_src_blxy->offset = inverse_col + row_width;
-                temp_src_blxy->r = r;
-                temp_src_blxy->g = g;
-                temp_src_blxy->b = b;
-                ++temp_src_blxy;
+                WRITE_TO_SEG(temp_src_blxy, inverse_col + row_width, combined_color)
 
                 // BLYX
-                temp_src_blyx->offset = inverse_row + col_width;
-                temp_src_blyx->r = r;
-                temp_src_blyx->g = g;
-                temp_src_blyx->b = b;
-                ++temp_src_blyx;
+                WRITE_TO_SEG(temp_src_blyx, inverse_row + col_width, combined_color)
             }
         }
     }
