@@ -245,11 +245,44 @@ void implementation_driver(
     // Fill with white
     ISOLATED
     {
-        register unsigned char* end = frame_buffer;
-        register unsigned char* frame_buffer_iter_temp = frame_buffer + total_buffer_size - 1;
-        do 
-            *frame_buffer_iter_temp = 0xff;
-        while (--frame_buffer_iter_temp >= end);
+        register unsigned char* start = frame_buffer;
+        register unsigned long* long_start;
+        if (((unsigned long) start) % 8 == 0)
+            long_start = (unsigned long*) start;
+        else
+            // Round to next long
+            long_start = (unsigned long*) (start + (8 - (((unsigned long) start) % 8))); 
+
+        register unsigned char* end_exclusive = frame_buffer + total_buffer_size;
+        register unsigned long* long_end;
+        if (((unsigned long) end_exclusive) % 16 == 0)
+            long_end = (unsigned long*) end_exclusive;
+        else
+            long_end = (unsigned long*) (end_exclusive - (((unsigned long) end_exclusive) % 16));
+
+        // Smol start
+        while (start != (unsigned char*) long_start)
+        {
+            *start = 0xff;
+            ++start;
+        }
+
+        // Main body
+        while (long_start != long_end)
+        {
+            // TODO: unroll?
+            *long_start = 0xffffffffffffffff;
+            *(long_start + 1) = 0xffffffffffffffff;
+            long_start += 2;
+        }
+
+        // Smol end
+        register unsigned char* end_iter = (unsigned char*) long_end;
+        while (end_iter != end_exclusive)
+        {
+            *end_iter = 0xff;
+            ++end_iter;
+        }
     }
 
     int origin_x = 0, origin_y = 0;
