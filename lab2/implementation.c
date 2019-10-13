@@ -13,8 +13,6 @@
 #define INSTR_mirrorX 4
 #define INSTR_mirrorY 5
 
-#define ISOLATED if (true)
-
 typedef struct 
 {
     int offset; // x_bytes + y_bytes.
@@ -88,19 +86,15 @@ void implementation_driver(
 
 
     int num_pixels = 0;
-    ISOLATED
+    for (int i = 0; i < total_buffer_size; i += 3)
     {
-        register int num_pixels_local = 0;
-        register unsigned char* iter_end = frame_buffer + total_buffer_size;
-        for (register unsigned char* iter = frame_buffer; iter != iter_end; iter += 3)
-        {
-            if (*iter == 0xff
-                && *(iter + 1) == 0xff
-                && *(iter + 2) == 0xff)
-                continue;
-            ++num_pixels_local;
-        }
-        num_pixels = num_pixels_local;
+
+        // TODO opt
+        if (frame_buffer[i] == 0xff
+            && frame_buffer[i + 1] == 0xff
+            && frame_buffer[i + 2] == 0xff)
+            continue;
+        num_pixels++;
     }
 
     #ifdef DEBUGGING
@@ -213,9 +207,12 @@ void implementation_driver(
             ++temp_src_blyx;
         }
     }
+<<<<<<< HEAD
 
+=======
+>>>>>>> parent of cb6d8bd... 730x: small improvments. Added useless qsort code
     // Fill with white
-    ISOLATED
+    if (true)
     {
         register unsigned char* end = frame_buffer;
         register unsigned char* frame_buffer_iter_temp = frame_buffer + total_buffer_size - 1;
@@ -223,14 +220,19 @@ void implementation_driver(
             *frame_buffer_iter_temp = 0xff;
         while (frame_buffer_iter_temp-- != end);
     }
-
     int origin_x = 0, origin_y = 0;
     int unit_x_x = 1, unit_x_y = 0;
-    int unit_y_x = 0, unit_y_y = 1; 
+    int unit_y_x = 0, unit_y_y = 1;
 
     int frame_end = frames_to_process * 25;
 
+<<<<<<< HEAD
     for (int frameIdx = 0; frameIdx != frame_end; frameIdx += 25)
+=======
+
+
+    for (int frameIdx = 0; frameIdx < frame_end; frameIdx += 25)
+>>>>>>> parent of cb6d8bd... 730x: small improvments. Added useless qsort code
     {
         struct kv* sensor_index_end = sensor_values + 25;  
         for (; sensor_values != sensor_index_end; ++sensor_values)
@@ -442,9 +444,9 @@ void implementation_driver(
         // Copy the transformed dense structure with offset
         register segment_t* current_src_buffer_iter = current_src_buffer;
         register segment_t* current_src_buffer_iter_end = current_src_buffer_iter + num_pixels;
-
-        ISOLATED
+        while (current_src_buffer_iter < current_src_buffer_iter_end)
         {
+<<<<<<< HEAD
             register unsigned char* fbuf_start = base_offset + frame_buffer;
             while (current_src_buffer_iter != current_src_buffer_iter_end)
             {
@@ -456,6 +458,15 @@ void implementation_driver(
                 *(start + 2) = current_segment.b;
                 current_src_buffer_iter++;
             }
+=======
+            segment_t current_segment = *current_src_buffer_iter;
+            register int start = current_segment.offset + base_offset;
+        
+            frame_buffer[start] = current_segment.r;
+            frame_buffer[start + 1] = current_segment.g;
+            frame_buffer[start + 2] = current_segment.b;
+            current_src_buffer_iter++;
+>>>>>>> parent of cb6d8bd... 730x: small improvments. Added useless qsort code
         }
 
         verifyFrame(frame_buffer, width, height, grading_mode);
@@ -463,16 +474,20 @@ void implementation_driver(
         if (frameIdx != frames_to_process - 1)
         {
             current_src_buffer_iter = current_src_buffer;
+<<<<<<< HEAD
             register unsigned char* fbuf_start = frame_buffer + base_offset;
             while (current_src_buffer_iter != current_src_buffer_iter_end)
+=======
+            while (current_src_buffer_iter < current_src_buffer_iter_end)
+>>>>>>> parent of cb6d8bd... 730x: small improvments. Added useless qsort code
             {
-                register unsigned char* curr_fbuf = fbuf_start + current_src_buffer_iter->offset;
+                register int start = current_src_buffer_iter->offset + base_offset;
 
-                *curr_fbuf = 0xff;
-                *(curr_fbuf + 1) = 0xff;
-                *(curr_fbuf + 2) = 0xff;
+                frame_buffer[start] = 0xff;
+                frame_buffer[start + 1] = 0xff;
+                frame_buffer[start + 2] = 0xff;
 
-                ++current_src_buffer_iter;
+                current_src_buffer_iter++;
             }
         }
     }
