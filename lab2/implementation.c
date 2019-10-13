@@ -503,21 +503,21 @@ void implementation_driver(
         int base_offset = src_buffer_offset_x_bytes + src_buffer_offset_y_bytes;
 
         // Copy the transformed dense structure with offset
-        register segment_t* current_src_buffer_iter = current_src_buffer;
-        register segment_t* current_src_buffer_iter_end = current_src_buffer_iter + num_pixels;
+        register unsigned long* current_src_buffer_iter = (unsigned long*) current_src_buffer;
+        register unsigned long* current_src_buffer_iter_end = (unsigned long*) current_src_buffer_iter + num_pixels;
 
         ISOLATED
         {
             register unsigned char* fbuf_start = base_offset + frame_buffer;
             while (current_src_buffer_iter < current_src_buffer_iter_end)
             {
-                register segment_t current_segment = *current_src_buffer_iter;
-                register unsigned char* start = current_segment.offset + fbuf_start;
+                register unsigned long current_segment = *current_src_buffer_iter;
+                register unsigned char* start = (current_segment & 0x0ffffffff) + fbuf_start;
             
-                *start = current_segment.r;
-                *(start + 1) = current_segment.g;
-                *(start + 2) = current_segment.b;
-                current_src_buffer_iter++;
+                *start = current_segment >> 32;
+                *(start + 1) = current_segment >> 40;
+                *(start + 2) = current_segment >> 48;
+                ++current_src_buffer_iter;
             }
         }
 
@@ -525,11 +525,11 @@ void implementation_driver(
 
         if (frameIdx != frames_to_process - 1)
         {
-            current_src_buffer_iter = current_src_buffer;
+            current_src_buffer_iter = (unsigned long*) current_src_buffer;
             register unsigned char* fbuf_start = frame_buffer + base_offset;
             while (current_src_buffer_iter < current_src_buffer_iter_end)
             {
-                register unsigned char* curr_fbuf = fbuf_start + current_src_buffer_iter->offset;
+                register unsigned char* curr_fbuf = fbuf_start + (*current_src_buffer_iter & 0x0ffffffff);
 
                 *curr_fbuf = 0xff;
                 *(curr_fbuf + 1) = 0xff;
