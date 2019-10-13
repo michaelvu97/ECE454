@@ -171,103 +171,102 @@ void implementation_driver(
     segment_t* temp_src_tlxy = src_buffers[TL_XY];
     segment_t* temp_src_tlyx = src_buffers[TL_YX];
 
-    for (
-        int src_row = 0,
-            row_width = 0,
-            inverse_row = TRIPLE_LAMBDA,
-            inverse_row_width = TRIPLE_WIDTH_LAMBDA; 
-
-            src_row < triple_width;
-
-            src_row += 3,
-            row_width += triple_width,
-            inverse_row -= 3,
-            inverse_row_width -= triple_width)
+    ISOLATED
     {
+        unsigned char* frame_buffer_iter = frame_buffer;
+
         for (
-            int src_col = 0, 
-                col_width = 0,
-                inverse_col = TRIPLE_LAMBDA,
-                inverse_col_width = TRIPLE_WIDTH_LAMBDA; 
+            int src_row = 0,
+                row_width = 0,
+                inverse_row = TRIPLE_LAMBDA,
+                inverse_row_width = TRIPLE_WIDTH_LAMBDA; 
 
-                src_col < triple_width; 
+                src_row < triple_width;
 
-                src_col += 3, 
-                col_width += triple_width,
-                inverse_col -= 3,
-                inverse_col_width -= triple_width)
+                src_row += 3,
+                row_width += triple_width,
+                inverse_row -= 3,
+                inverse_row_width -= triple_width)
         {
-            int src_base = row_width + src_col;
-            register unsigned char r = frame_buffer[src_base];
-            register unsigned char g = frame_buffer[src_base + 1];
-            register unsigned char b = frame_buffer[src_base + 2];
+            for (
+                int src_col = 0, 
+                    col_width = 0,
+                    inverse_col = TRIPLE_LAMBDA,
+                    inverse_col_width = TRIPLE_WIDTH_LAMBDA; 
 
-            if (r == 0xff && g == 0xff && b == 0xff)
-                continue;
+                    src_col < triple_width; 
 
-            // TODO reduce multiplication
+                    src_col += 3, 
+                    col_width += triple_width,
+                    inverse_col -= 3,
+                    inverse_col_width -= triple_width,
+                    frame_buffer_iter += 3)
+            {
+                register unsigned char r = *frame_buffer_iter;
+                register unsigned char g = *(frame_buffer_iter + 1);
+                register unsigned char b = *(frame_buffer_iter + 2);
 
-            // BRXY
-            temp_src_brxy->offset = src_base;
-            temp_src_brxy->r = r;
-            temp_src_brxy->g = g;
-            temp_src_brxy->b = b;
-            ++temp_src_brxy;
+                if (r == 0xff && g == 0xff && b == 0xff)
+                    continue;
 
-            // BRYX
-            temp_src_bryx->offset = col_width + src_row;
-            temp_src_bryx->r = r;
-            temp_src_bryx->g = g;
-            temp_src_bryx->b = b;
-            ++temp_src_bryx;
+                // BRXY
+                temp_src_brxy->offset = row_width + src_col;
+                temp_src_brxy->r = r;
+                temp_src_brxy->g = g;
+                temp_src_brxy->b = b;
+                ++temp_src_brxy;
 
-            // TRXY
-            temp_src_trxy->offset = inverse_row_width + src_col;
-            temp_src_trxy->r = r; 
-            temp_src_trxy->g = g;
-            temp_src_trxy->b = b;
-            ++temp_src_trxy;
+                // BRYX
+                temp_src_bryx->offset = col_width + src_row;
+                temp_src_bryx->r = r;
+                temp_src_bryx->g = g;
+                temp_src_bryx->b = b;
+                ++temp_src_bryx;
 
-            // TRYX
-            temp_src_tryx->offset = src_row + inverse_col_width;
-            temp_src_tryx->r = r;
-            temp_src_tryx->g = g;
-            temp_src_tryx->b = b;
-            ++temp_src_tryx;
+                // TRXY
+                temp_src_trxy->offset = inverse_row_width + src_col;
+                temp_src_trxy->r = r; 
+                temp_src_trxy->g = g;
+                temp_src_trxy->b = b;
+                ++temp_src_trxy;
 
-            // TLXY
-            temp_src_tlxy->offset = inverse_col + inverse_row_width;
-            temp_src_tlxy->r = r;
-            temp_src_tlxy->g = g;
-            temp_src_tlxy->b = b;
-            ++temp_src_tlxy;
+                // TRYX
+                temp_src_tryx->offset = src_row + inverse_col_width;
+                temp_src_tryx->r = r;
+                temp_src_tryx->g = g;
+                temp_src_tryx->b = b;
+                ++temp_src_tryx;
 
-            // TLYX
-            temp_src_tlyx->offset = inverse_row + inverse_col_width;
-            temp_src_tlyx->r = r;
-            temp_src_tlyx->g = g;
-            temp_src_tlyx->b = b;
-            ++temp_src_tlyx;
+                // TLXY
+                temp_src_tlxy->offset = inverse_col + inverse_row_width;
+                temp_src_tlxy->r = r;
+                temp_src_tlxy->g = g;
+                temp_src_tlxy->b = b;
+                ++temp_src_tlxy;
 
-            // BLXY
-            temp_src_blxy->offset = inverse_col + row_width;
-            temp_src_blxy->r = r;
-            temp_src_blxy->g = g;
-            temp_src_blxy->b = b;
-            ++temp_src_blxy;
+                // TLYX
+                temp_src_tlyx->offset = inverse_row + inverse_col_width;
+                temp_src_tlyx->r = r;
+                temp_src_tlyx->g = g;
+                temp_src_tlyx->b = b;
+                ++temp_src_tlyx;
 
-            // BLYX
-            temp_src_blyx->offset = inverse_row + col_width;
-            temp_src_blyx->r = r;
-            temp_src_blyx->g = g;
-            temp_src_blyx->b = b;
-            ++temp_src_blyx;
+                // BLXY
+                temp_src_blxy->offset = inverse_col + row_width;
+                temp_src_blxy->r = r;
+                temp_src_blxy->g = g;
+                temp_src_blxy->b = b;
+                ++temp_src_blxy;
+
+                // BLYX
+                temp_src_blyx->offset = inverse_row + col_width;
+                temp_src_blyx->r = r;
+                temp_src_blyx->g = g;
+                temp_src_blyx->b = b;
+                ++temp_src_blyx;
+            }
         }
     }
-
-    // Sort buffers
-    // qsortall(src_buffers, num_pixels);
-
     // Fill with white
     ISOLATED
     {
@@ -404,8 +403,8 @@ void implementation_driver(
         int origin_y_bytes = triple_width * origin_y;
 
         // TODO determine which to run in a more optimized way
-        int src_buffer_offset_x_bytes;
-        int src_buffer_offset_y_bytes;
+        int src_buffer_offset_x_bytes = origin_x_bytes;
+        int src_buffer_offset_y_bytes = origin_y_bytes;
         segment_t* current_src_buffer;
 
         #ifdef DEBUGGING
@@ -417,7 +416,6 @@ void implementation_driver(
             if (unit_y_y_dir > 0)
             {
                 current_src_buffer = src_buffers[BR_XY];                
-                src_buffer_offset_y_bytes = origin_y_bytes;
                 #ifdef DEBUGGING
                     printf("BR_XY\n");
                 #endif
@@ -425,13 +423,11 @@ void implementation_driver(
             else
             {
                 current_src_buffer = src_buffers[TR_XY];
-                src_buffer_offset_y_bytes = origin_y_bytes - TRIPLE_WIDTH_LAMBDA;
+                src_buffer_offset_y_bytes -= TRIPLE_WIDTH_LAMBDA;
                 #ifdef DEBUGGING
                     printf("TR_XY\n");
                 #endif
             }
-
-            src_buffer_offset_x_bytes = origin_x_bytes;
         }
         else if (unit_x_x_dir < 0)
         {
@@ -441,25 +437,23 @@ void implementation_driver(
                     printf("BL_XY\n");
                 #endif
                 current_src_buffer = src_buffers[BL_XY];
-                src_buffer_offset_y_bytes = origin_y_bytes;
             }
             else
             {
                 current_src_buffer = src_buffers[TL_XY];
-                src_buffer_offset_y_bytes = origin_y_bytes - TRIPLE_WIDTH_LAMBDA;
+                src_buffer_offset_y_bytes -= TRIPLE_WIDTH_LAMBDA;
                 #ifdef DEBUGGING
                     printf("TL_XY\n");
                 #endif
             }
 
-            src_buffer_offset_x_bytes = origin_x_bytes - TRIPLE_LAMBDA;
+            src_buffer_offset_x_bytes -= TRIPLE_LAMBDA;
         }
         else if (unit_x_y_dir > 0)
         {
             if (unit_y_x_dir > 0)
             {
                 current_src_buffer = src_buffers[BR_YX];
-                src_buffer_offset_x_bytes = origin_x_bytes;
                 #ifdef DEBUGGING
                     printf("BR_YX\n");
                 #endif
@@ -467,20 +461,17 @@ void implementation_driver(
             else
             {
                 current_src_buffer = src_buffers[BL_YX];
-                src_buffer_offset_x_bytes = origin_x_bytes - TRIPLE_LAMBDA;
+                src_buffer_offset_x_bytes -= TRIPLE_LAMBDA;
                 #ifdef DEBUGGING
                     printf("BL_YX\n");
                 #endif
             }
-
-            src_buffer_offset_y_bytes = origin_y_bytes;
         }
         else
         {
             if (unit_y_x_dir > 0)
             {
                 current_src_buffer = src_buffers[TR_YX];
-                src_buffer_offset_x_bytes = origin_x_bytes;
                 #ifdef DEBUGGING
                     printf("TR_YX\n");
                 #endif
@@ -488,13 +479,13 @@ void implementation_driver(
             else
             {
                 current_src_buffer = src_buffers[TL_YX];                
-                src_buffer_offset_x_bytes = origin_x_bytes - TRIPLE_LAMBDA;
+                src_buffer_offset_x_bytes -= TRIPLE_LAMBDA;
                 #ifdef DEBUGGING
                     printf("TL_YX\n");
                 #endif
             }
 
-            src_buffer_offset_y_bytes = origin_y_bytes - TRIPLE_WIDTH_LAMBDA;
+            src_buffer_offset_y_bytes -= TRIPLE_WIDTH_LAMBDA;
         }
 
         #ifdef DEBUGGING
