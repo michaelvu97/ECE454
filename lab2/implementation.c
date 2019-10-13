@@ -214,9 +214,6 @@ void implementation_driver(
         }
     }
 
-    // Sort buffers
-    // qsortall(src_buffers, num_pixels);
-
     // Fill with white
     ISOLATED
     {
@@ -259,17 +256,17 @@ void implementation_driver(
                     // Rotation
                     if (key[1] == 'C')
                         // Counter-clockwise
-                        argument = -1 * argument;
+                        argument *= -1;
                 } else {
                     switch (first)
                     {
                         case 'W':
-                            argument = -1 * argument;
+                            argument *= -1;
                         case 'S':
                             type = INSTR_translateY;
                             break;
                         case 'A':
-                            argument = -1 * argument;
+                            argument *= -1;
                         case 'D':
                             type = INSTR_translateX;
                             break;
@@ -352,7 +349,6 @@ void implementation_driver(
         int origin_x_bytes = 3 * origin_x;
         int origin_y_bytes = triple_width * origin_y;
 
-        // TODO determine which to run in a more optimized way
         int src_buffer_offset_x_bytes = origin_x_bytes;
         int src_buffer_offset_y_bytes = origin_y_bytes;
         segment_t* current_src_buffer;
