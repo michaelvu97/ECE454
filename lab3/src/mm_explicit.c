@@ -154,6 +154,8 @@ static void insert_to_list_head(void* bp)
     {
         PUT_P(HDR_PREV_P(free_list_head), bp);
     }
+
+    free_list_head = bp;
 }
 
 
@@ -261,15 +263,7 @@ void* extend_heap(size_t words)
     PUT(HDRP(NEXT_BLKP(bp)), PACK(0, 1));        // new epilogue header
 
     // Insert the new free block into the linked list
-    void* old_head = free_list_head;
-    free_list_head = bp;
-    PUT(HDR_PREV_P(bp), (uintptr_t) 0x0);
-    PUT(HDR_NEXT_P(bp), (uintptr_t) old_head);
-    if (old_head != NULL)
-    {
-        // Backwards link
-        PUT(HDR_PREV_P(old_head), (uintptr_t) bp);
-    }
+    insert_to_list_head(bp);
 
     /* Coalesce if the previous block was free */
     return coalesce(bp);
