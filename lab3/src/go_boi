@@ -1,3 +1,2 @@
 #!/bin/csh
-make
 ./mdriver -V
