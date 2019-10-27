@@ -36,7 +36,7 @@ team_t team = {
 };
 
 // Comment this out to disable debug statements
-#define DEBUGGING_ENABLED
+// #define DEBUGGING_ENABLED
 #ifdef DEBUGGING_ENABLED
     #define DEBUG(...) printf(__VA_ARGS__)
 #else
@@ -71,6 +71,7 @@ team_t team = {
 /* Read and write a word at address p */
 #define GET(p)          (*(uintptr_t *)(p))
 #define PUT(p,val)      (*(uintptr_t *)(p) = (val))
+#define PUT_P(p,val)    (*(uintptr_t *)(p) = ((uintptr_t) val))
 
 /* Read the size and allocated fields from address p */
 #define GET_SIZE(p)     (GET(p) & ~(DSIZE - 1))
@@ -117,6 +118,43 @@ int mm_init(void)
     return 0;
 }
 
+static void remove_from_free_list(void* bp)
+{
+    ASSERT(bp);
+    void* prev = PREV_FREE_BLKP(bp);
+    void* next = NEXT_FREE_BLKP(bp);
+
+    ASSERT((prev != next) || (prev == NULL && next == NULL));
+
+    if (prev)
+    {
+        ASSERT(bp != free_list_head);
+        PUT_P(HDR_NEXT_P(prev), next);
+    } else 
+    {
+        ASSERT(bp == free_list_head);
+        free_list_head = next;
+    }
+
+    if (next)
+    {
+        PUT_P(HDR_PREV_P(next), prev);
+    }
+
+    // bp's pointers do not change.
+}
+
+// Assumes that bp is not currently inside the list.
+static void insert_to_list_head(void* bp)
+{
+    ASSERT(bp);
+    PUT_P(HDR_PREV_P(bp), 0x0);
+    PUT_P(HDR_NEXT_P(bp), free_list_head);
+    if (free_list_head)
+    {
+        PUT_P(HDR_PREV_P(free_list_head), bp);
+    }
+}
 
 
 /**********************************************************
@@ -147,31 +185,12 @@ void *coalesce(void *bp)
     } else if (prev_alloc && !next_alloc)
     {
         DEBUG("Next is free\n");
+
         // Coalesce with next block
-        void* existing_bp = NEXT_BLKP(bp);
+        void* c_bp = NEXT_BLKP(bp);
 
-        // The old links
-        void* next_bp = NEXT_FREE_BLKP(existing_bp);
-        void* prev_bp = PREV_FREE_BLKP(existing_bp);
-
-        // Next link
-        PUT(HDR_NEXT_P(bp), (uintptr_t) next_bp);
-        if (next_bp)
-        {
-            PUT(HDR_PREV_P(next_bp), (uintptr_t) bp);
-        }
-
-        // Prev link
-        if (prev_bp == NULL)
-        {
-            // This block was the head.
-            free_list_head = bp;
-        } else
-        {
-            PUT(HDR_NEXT_P(prev_bp), (uintptr_t) bp);
-        }
-
-        PUT(HDR_PREV_P(bp), (uintptr_t) prev_bp);
+        // Remove c from the free list
+        remove_from_free_list(c_bp);
 
         // Merge these blocks.
         size += GET_SIZE(HDRP(NEXT_BLKP(bp)));
@@ -182,7 +201,10 @@ void *coalesce(void *bp)
     {
         DEBUG("prev is free\n");
         // Coalesce with prev block
-        // No pointers have to change.
+
+        // Remove the current block from the free list
+        remove_from_free_list(bp);
+
         size += GET_SIZE(HDRP(PREV_BLKP(bp)));
         PUT(FTRP(bp), PACK(size, 0));
         PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
@@ -190,26 +212,17 @@ void *coalesce(void *bp)
     } else
     {   
         DEBUG("Both are free\n");
+
         // c is bp's right child (next of bp in memory)
         void* c_bp = NEXT_BLKP(bp);
-        void* c_prev = HDR_PREV_P(c_bp);
-        void* c_next = HDR_NEXT_P(c_bp);
 
-        // First: Merge b and c, and joining C's links.
-        if (c_prev == NULL)
-        {
-            free_list_head = c_next;
-        } else 
-        {
-            PUT(HDR_NEXT_P(c_prev), (uintptr_t) c_next);
-        }
+        // Remove c from the list
+        remove_from_free_list(c_bp);
 
-        if (c_next != NULL)
-        {
-            PUT(HDR_PREV_P(c_next), (uintptr_t) c_prev);
-        }
+        // Remove b from the lsit
+        remove_from_free_list(bp);
 
-        // Now merge a and (b+c) in place. a's pointers do not change.
+        // a's pointers do not change.
 
         size += GET_SIZE(HDRP(PREV_BLKP(bp)))  +
             GET_SIZE(FTRP(NEXT_BLKP(bp)));
@@ -292,6 +305,11 @@ void place(void* bp, size_t asize)
     DEBUG("Placing size: %d at 0x%lx\n", (int) asize, (unsigned long) bp);
     /* Get the current block size */
     size_t bsize = GET_SIZE(HDRP(bp));
+
+    if (bsize - asize > MIN_BLOCK_SIZE)
+    {
+        // The block may be split.
+    }
 
     // TODO: decide to split the block?
     // For now: the blocks aren't split.
