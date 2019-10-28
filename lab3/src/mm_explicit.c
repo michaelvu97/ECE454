@@ -175,6 +175,9 @@ void *coalesce(void *bp)
 
     DEBUG("Coalescing %lx: ", (unsigned long) bp);
 
+    void* a_bp = PREV_BLKP(bp); // Pointer to the previous block (in memory)
+    void* c_bp = NEXT_BLKP(bp); // Pointer to the next block (in memory)
+
     size_t prev_alloc = GET_ALLOC(((char*)bp) - DSIZE);
     size_t next_alloc = GET_ALLOC(HDRP(NEXT_BLKP(bp)));
     size_t size = GET_SIZE(HDRP(bp));
@@ -191,13 +194,12 @@ void *coalesce(void *bp)
         DEBUG("Next is free\n");
 
         // Coalesce with next block
-        void* c_bp = NEXT_BLKP(bp);
 
         // Remove c from the free list
         remove_from_free_list(c_bp);
 
         // Merge these blocks.
-        size += GET_SIZE(HDRP(NEXT_BLKP(bp)));
+        size += GET_SIZE(HDRP(c_bp));
         PUT(HDRP(bp), PACK(size, 0));
         PUT(FTRP(bp), PACK(size, 0));
         return (bp);
@@ -209,16 +211,13 @@ void *coalesce(void *bp)
         // Remove the current block from the free list
         remove_from_free_list(bp);
 
-        size += GET_SIZE(HDRP(PREV_BLKP(bp)));
+        size += GET_SIZE(HDRP(a_bp));
         PUT(FTRP(bp), PACK(size, 0));
-        PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
+        PUT(HDRP(a_bp), PACK(size, 0));
         return (PREV_BLKP(bp));
     } else
     {   
         DEBUG("Both are free\n");
-
-        // c is bp's right child (next of bp in memory)
-        void* c_bp = NEXT_BLKP(bp);
 
         // Remove c from the list
         remove_from_free_list(c_bp);
@@ -227,7 +226,7 @@ void *coalesce(void *bp)
         remove_from_free_list(bp);
 
         // a's pointers do not change.
-        size += GET_SIZE(HDRP(PREV_BLKP(bp))) + GET_SIZE(HDRP(c_bp));
+        size += GET_SIZE(HDRP(a_bp)) + GET_SIZE(HDRP(c_bp));
         PUT(HDRP(PREV_BLKP(bp)), PACK(size,0));
         PUT(FTRP(NEXT_BLKP(bp)), PACK(size,0));
 
@@ -276,10 +275,10 @@ void* extend_heap(size_t words)
  * Return NULL if no free blocks can handle that size
  * Assumed that asize is aligned
  **********************************************************/
-void * find_fit(size_t asize)
+void* find_fit(size_t asize)
 {
     DEBUG("Finding fit size: %d\n", (int) asize);
-    void *bp;
+    void * bp;
     for (bp = free_list_head; bp != NULL; bp = NEXT_FREE_BLKP(bp))
     {
         if (asize <= GET_SIZE(HDRP(bp)))
