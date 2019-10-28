@@ -29,9 +29,11 @@ team_t team = {
     "Michael Vu",
     /* First member's email address */
     "mike.vu@mail.utoronto.ca",
-    /* Second member's full name (do not modify this as this is an individual lab) */
+    /* Second member's full name 
+    (do not modify this as this is an individual lab) */
     "",
-    /* Second member's email address (do not modify this as this is an individual lab)*/
+    /* Second member's email address 
+    (do not modify this as this is an individual lab)*/
     ""
 };
 
@@ -351,9 +353,13 @@ void* find_fit_first_fit(size_t asize)
     void** free_list_min = get_free_list(asize);
     void** free_list_end = free_lists + BINDEX_MAX_SIZE;
 
-    for (void** curr_free_list_head = free_list_min; curr_free_list_head != free_list_end; curr_free_list_head++)
+    for (void** curr_free_list_head = free_list_min; 
+        curr_free_list_head != free_list_end; 
+        curr_free_list_head++)
     {
-        for (void* bp = *curr_free_list_head; bp != NULL; bp = NEXT_FREE_BLKP(bp))
+        for (void* bp = *curr_free_list_head; 
+            bp != NULL; 
+            bp = NEXT_FREE_BLKP(bp))
         {
             // First fit
             if (asize <= GET_SIZE(HDRP(bp)))
@@ -371,12 +377,16 @@ void* find_fit_best_fit(size_t size)
     void** free_list_min = get_free_list(size);
     void** free_list_end = free_lists + BINDEX_MAX_SIZE;
 
-    for (void** curr_free_list_head = free_list_min; curr_free_list_head != free_list_end; curr_free_list_head++)
+    for (void** curr_free_list_head = free_list_min; 
+        curr_free_list_head != free_list_end; 
+        curr_free_list_head++)
     {
         void* best_fit_ptr = NULL;
         size_t best_fit_size = ~0;
         ASSERT(best_fit_size > 0);
-        for (void* bp = *curr_free_list_head; bp != NULL; bp = NEXT_FREE_BLKP(bp))
+        for (void* bp = *curr_free_list_head;
+            bp != NULL; 
+            bp = NEXT_FREE_BLKP(bp))
         {
             // First fit
             size_t block_size = GET_SIZE(HDRP(bp));
@@ -591,7 +601,10 @@ void* mm_realloc_grow(void* ptr, size_t block_size)
                 PUT_P(FTRP(new_free_bp), PACK(new_free_bp_size, 0));
 
                 // Add the split block to the free list
-                insert_to_list_head(new_free_bp, get_free_list(new_free_bp_size));
+                insert_to_list_head(
+                    new_free_bp, 
+                    get_free_list(new_free_bp_size)
+                );
             }
 
             return ptr;

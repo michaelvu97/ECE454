@@ -1,7 +1,7 @@
 CC = gcc
-CFLAGS =  -Wall -O1 -g
+CFLAGS =  -Wall -O1 -g 
 
-OBJS = mdriver.o mm_explicit.o memlib.o fsecs.o fcyc.o clock.o ftimer.o
+OBJS = mdriver.o mm.o memlib.o fsecs.o fcyc.o clock.o ftimer.o
 
 mdriver: $(OBJS)
 	$(CC) $(CFLAGS) -o mdriver $(OBJS)
