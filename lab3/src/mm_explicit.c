@@ -44,7 +44,7 @@ team_t team = {
 #endif
 
 // Comment this out to disable assertions
-#define ASSERTIONS_ENABLED
+// #define ASSERTIONS_ENABLED
 #ifdef ASSERTIONS_ENABLED
     #define ASSERT(x) if (!(x)) \
     { \
@@ -95,7 +95,6 @@ team_t team = {
 
 #define FAST_LOG_2_FLOOR_BIT_OFFSET 5 
 #define BINDEX_MAX_SIZE 8
-#define BINDEX_INNER_MAX_SIZE BINDEX_MAX_SIZE + FAST_LOG_2_FLOOR_BIT_OFFSET
 
 void* free_lists[BINDEX_MAX_SIZE];
 
@@ -103,20 +102,19 @@ static int get_bindex(size_t asize)
 {
     ASSERT(asize >= MIN_BLOCK_SIZE);
 
-    int index = FAST_LOG_2_FLOOR_BIT_OFFSET;
+    int index = 0;
     asize >>= FAST_LOG_2_FLOOR_BIT_OFFSET;
-    while ((asize >>= 1) && (index < BINDEX_INNER_MAX_SIZE - 1))
+    while ((asize >>= 1) && (index < BINDEX_MAX_SIZE - 1))
     {
         ++index;
 
         // Check for infinite loops
         ASSERT(index < 10000000);
     }
-    ASSERT(index <= 12);
-    ASSERT(index >= 5);
-
-    // 0th bin is 32B to 64B.
-    return index - 5;
+    ASSERT(index >= 0);
+    ASSERT(index <= BINDEX_MAX_SIZE);
+    
+    return index;
 }
 
 static inline void** get_free_list(size_t asize)
@@ -470,7 +468,6 @@ static size_t user_size_to_block_size(size_t user_requested_size)
     if (user_requested_size <= MIN_BLOCK_SIZE - DSIZE)
         return MIN_BLOCK_SIZE;
     else
-        // TODO: correct this alignment?
         return DSIZE * ((user_requested_size + (DSIZE) + (DSIZE-1))/ DSIZE);
 }
 
@@ -529,6 +526,8 @@ void *mm_realloc(void *ptr, size_t size)
         return NULL;
     }
 
+    // TODO: alloc realloc to shrink the region.
+
     /* If oldptr is NULL, then this is just malloc. */
     if (ptr == NULL)
         return (mm_malloc(size));
@@ -557,28 +556,23 @@ void *mm_realloc(void *ptr, size_t size)
 
             remove_from_free_list(next_bp, get_free_list(next_block_size));
 
-            // No splitting???
-            
+            // Check if the resulting block can be split
+            if (combined_size - requested_block_size >= MIN_BLOCK_SIZE)
+            {
+                size_t new_free_bp_size = combined_size - requested_block_size;
+                // Overwrite the old footer
+                PUT_P(HDRP(ptr), PACK(requested_block_size, 1));
+                PUT_P(FTRP(ptr), PACK(requested_block_size, 1));
 
-            /*
-            // Copy the first 2 words of the ptr block (since it will be 
-            // overwritten when inserted as a "free" block)
-            uintptr_t a = GET(ptr);
-            uintptr_t b = GET(ptr + WSIZE);
+                void* new_free_bp = FTRP(ptr) + DSIZE;
 
-            // Check if the current block needs to be promoted
-            void** new_free_list = get_free_list(combined_size);
-            insert_to_list_head(ptr, new_free_list);
+                // Add the new header
+                PUT_P(HDRP(new_free_bp), PACK(new_free_bp_size, 0));
+                PUT_P(FTRP(new_free_bp), PACK(new_free_bp_size, 0));
 
-            place(ptr, requested_block_size);
-
-            PUT_P(HDRP(ptr), PACK(combined_size, 1));
-            PUT_P(FTRP(ptr), PACK(combined_size, 1));
-
-            // Write back the overwritten words
-            PUT_P(ptr, a);
-            PUT_P(ptr + WSIZE, b);
-            */
+                // Add the split block to the free list
+                insert_to_list_head(new_free_bp, get_free_list(new_free_bp_size));
+            }
 
             return ptr;
         }
@@ -600,13 +594,4 @@ void *mm_realloc(void *ptr, size_t size)
     memcpy(newptr, oldptr, copySize);
     mm_free(oldptr);
     return newptr;
-}
-
-/**********************************************************
- * mm_check
- * Check the consistency of the memory heap
- * Return nonzero if the heap is consistant.
- *********************************************************/
-int mm_check(void){
-  return 1;
 }
