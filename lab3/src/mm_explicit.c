@@ -44,7 +44,7 @@ team_t team = {
 #endif
 
 // Comment this out to disable assertions
-#define ASSERTIONS_ENABLED
+// #define ASSERTIONS_ENABLED
 #ifdef ASSERTIONS_ENABLED
     #define ASSERT(x) if (!(x)) \
     { \
@@ -175,9 +175,11 @@ void *coalesce(void *bp)
 
     DEBUG("Coalescing %lx: ", (unsigned long) bp);
 
-    size_t prev_alloc = GET_ALLOC(((char*)bp) - 2 * WSIZE);
+    size_t prev_alloc = GET_ALLOC(((char*)bp) - DSIZE);
     size_t next_alloc = GET_ALLOC(HDRP(NEXT_BLKP(bp)));
     size_t size = GET_SIZE(HDRP(bp));
+
+    ASSERT(GET_SIZE(FTRP(bp)) == size);
 
     if (prev_alloc && next_alloc)
     {
@@ -221,13 +223,11 @@ void *coalesce(void *bp)
         // Remove c from the list
         remove_from_free_list(c_bp);
 
-        // Remove b from the lsit
+        // Remove b from the list
         remove_from_free_list(bp);
 
         // a's pointers do not change.
-
-        size += GET_SIZE(HDRP(PREV_BLKP(bp)))  +
-            GET_SIZE(FTRP(NEXT_BLKP(bp)));
+        size += GET_SIZE(HDRP(PREV_BLKP(bp))) + GET_SIZE(HDRP(c_bp));
         PUT(HDRP(PREV_BLKP(bp)), PACK(size,0));
         PUT(FTRP(NEXT_BLKP(bp)), PACK(size,0));
 
@@ -296,53 +296,64 @@ void * find_fit(size_t asize)
  **********************************************************/
 void place(void* bp, size_t asize)
 {
+    ASSERT(bp);
+    ASSERT(asize >= MIN_BLOCK_SIZE);
     DEBUG("Placing size: %d at 0x%lx\n", (int) asize, (unsigned long) bp);
     /* Get the current block size */
     size_t bsize = GET_SIZE(HDRP(bp));
 
-    if (bsize - asize > MIN_BLOCK_SIZE)
+    ASSERT(asize <= bsize);
+
+    size_t selected_block_size = bsize;
+
+    if (bsize - asize >= MIN_BLOCK_SIZE)
     {
-        // The block may be split.
+        // Split the block.
+        // TODO: somewhere in this block breaks the memory structure.
+        void* new_bp = bp + asize;
+        size_t new_block_size = bsize - asize;
+        selected_block_size = asize;
+
+        DEBUG("Splitting block. %d->(%d/%d)\n", 
+            (int) bsize,
+            (int)selected_block_size, (int)new_block_size);
+
+        ASSERT(!(new_block_size % 16));
+        ASSERT(!(selected_block_size % 16));
+
+        // Overwrite the old footer
+        PUT_P(FTRP(bp), PACK(new_block_size, 0));
+
+        // Add the new header
+        PUT_P(HDRP(new_bp), PACK(new_block_size, 0));
+
+        // Add a footer for the old block
+        PUT_P(new_bp - DSIZE, PACK(selected_block_size, 0));
+
+        // Overwrite the header for the old block
+        PUT_P(HDRP(bp), PACK(selected_block_size, 0));
+
+        // Add the split block to the free list
+        insert_to_list_head(new_bp);
+
+        ASSERT(GET_SIZE(HDRP(bp)) == selected_block_size);
+        ASSERT(GET_SIZE(FTRP(bp)) == selected_block_size);
+        ASSERT(GET_SIZE(HDRP(new_bp)) == new_block_size);
+        ASSERT(GET_SIZE(FTRP(new_bp)) == new_block_size);
+        ASSERT(GET(HDR_NEXT_P(new_bp)));
+        ASSERT(!GET(HDR_PREV_P(new_bp)));
     }
 
-    // TODO: decide to split the block?
-    // For now: the blocks aren't split.
-    void* prev_bp = PREV_FREE_BLKP(bp);
-    void* next_bp = NEXT_FREE_BLKP(bp);
-    
-    if (prev_bp == NULL)
-    {
-        // Case 1: The selected block is the head of the free list.       
-
-        ASSERT(bp == free_list_head);
-
-        // Reassign the root
-        free_list_head = next_bp;
-
-        if (next_bp)
-        {
-            // Reassign the previous ptr of the next element
-            PUT(HDR_PREV_P(next_bp), 0x0);
-        }
-    } else 
-    {
-        ASSERT(bp != free_list_head);
-
-        // Case 2: The selected block is inside or at the end of the free list.
-        if (next_bp)
-        {
-            // Case 2.1: The selected block is not at the end of the free list.
-            // Reassign the previous ptr of the next element
-            PUT(HDR_PREV_P(next_bp), (uintptr_t) prev_bp);
-        }
-
-        // Reassign the next ptr of the previous element
-        PUT(HDR_NEXT_P(prev_bp), (uintptr_t) next_bp);
-    }
+    remove_from_free_list(bp);
 
     // Mark this block as allocated.
-    PUT(HDRP(bp), PACK(bsize, 1));
-    PUT(FTRP(bp), PACK(bsize, 1));
+    PUT(HDRP(bp), PACK(selected_block_size, 1));
+    PUT(FTRP(bp), PACK(selected_block_size, 1));
+
+    ASSERT(GET_ALLOC(HDRP(bp)));
+    ASSERT(GET_ALLOC(FTRP(bp)));
+
+    ASSERT(GET_SIZE(HDRP(bp)) == GET_SIZE(FTRP(bp)));
 }
 
 /**********************************************************
@@ -356,6 +367,8 @@ void mm_free(void *bp)
         return;
     }
     size_t size = GET_SIZE(HDRP(bp));
+
+    ASSERT(GET_SIZE(FTRP(bp)) == size);
 
     // Insert the free block into the free list.
     void* old_head = free_list_head;
@@ -399,11 +412,15 @@ void *mm_malloc(size_t size)
         return NULL;
 
     /* Adjust block size to include overhead and alignment reqs. */
-    if (size <= MIN_BLOCK_SIZE)
+    if (size <= MIN_BLOCK_SIZE - DSIZE)
         asize = MIN_BLOCK_SIZE;
     else
         // TODO: correct this alignment?
         asize = DSIZE * ((size + (DSIZE) + (DSIZE-1))/ DSIZE);
+
+    ASSERT(asize >= size + DSIZE);
+    ASSERT((asize & 0x1) != 0x1);
+    ASSERT((asize % 8) == 0);
 
     /* Search the free list for a fit */
     if ((bp = find_fit(asize)) != NULL) {
