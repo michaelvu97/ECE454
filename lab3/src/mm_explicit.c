@@ -44,7 +44,7 @@ team_t team = {
 #endif
 
 // Comment this out to disable assertions
-// #define ASSERTIONS_ENABLED
+#define ASSERTIONS_ENABLED
 #ifdef ASSERTIONS_ENABLED
     #define ASSERT(x) if (!(x)) \
     { \
@@ -101,7 +101,6 @@ void* free_lists[BINDEX_MAX_SIZE];
 
 static int get_bindex(size_t asize)
 {
-    DEBUG("Getting bindex for size %ld\n", (unsigned long) asize);
     ASSERT(asize >= MIN_BLOCK_SIZE);
 
     int index = FAST_LOG_2_FLOOR_BIT_OFFSET;
@@ -464,6 +463,17 @@ void mm_free(void *bp)
     coalesce(bp);
 }
 
+static size_t user_size_to_block_size(size_t user_requested_size)
+{
+    ASSERT(user_requested_size > 0);
+    /* Adjust block size to include overhead and alignment reqs. */
+    if (user_requested_size <= MIN_BLOCK_SIZE - DSIZE)
+        return MIN_BLOCK_SIZE;
+    else
+        // TODO: correct this alignment?
+        return DSIZE * ((user_requested_size + (DSIZE) + (DSIZE-1))/ DSIZE);
+}
+
 
 /**********************************************************
  * mm_malloc
@@ -484,12 +494,8 @@ void *mm_malloc(size_t size)
     if (size == 0)
         return NULL;
 
-    /* Adjust block size to include overhead and alignment reqs. */
-    if (size <= MIN_BLOCK_SIZE - DSIZE)
-        asize = MIN_BLOCK_SIZE;
-    else
-        // TODO: correct this alignment?
-        asize = DSIZE * ((size + (DSIZE) + (DSIZE-1))/ DSIZE);
+    // Change to block size.
+    asize = user_size_to_block_size(size);
 
     ASSERT(asize >= size + DSIZE);
     ASSERT((asize & 0x1) != 0x1);
@@ -519,12 +525,65 @@ void *mm_realloc(void *ptr, size_t size)
     DEBUG("[[Realloc]] %lx to size %d\n", (unsigned long) ptr, (int) size);
     /* If size == 0 then this is just free, and we return NULL. */
     if(size == 0){
-      mm_free(ptr);
-      return NULL;
+        mm_free(ptr);
+        return NULL;
     }
+
     /* If oldptr is NULL, then this is just malloc. */
     if (ptr == NULL)
-      return (mm_malloc(size));
+        return (mm_malloc(size));
+
+    // Check if it can coalesce with the adjacent block (if free).
+    void* next_bp = NEXT_BLKP(ptr);
+    if (!GET_ALLOC(HDRP(next_bp)))
+    {
+        size_t current_block_size = GET_SIZE(HDRP(ptr));
+        size_t next_block_size = GET_SIZE(HDRP(next_bp));
+        
+        size_t combined_size = current_block_size + next_block_size;
+        size_t requested_block_size = user_size_to_block_size(size);
+        if (requested_block_size <= combined_size)
+        {
+            DEBUG("Reallocing by coalescing with next block: %ld "
+                "(%ld,%ld)->%ld\n",
+                (unsigned long) size,
+                (unsigned long) current_block_size,
+                (unsigned long) next_block_size,
+                (unsigned long) combined_size);
+
+            // Coalesce the blocks
+            PUT_P(HDRP(ptr), PACK(combined_size, 1));
+            PUT_P(FTRP(ptr), PACK(combined_size, 1));
+
+            remove_from_free_list(next_bp, get_free_list(next_block_size));
+
+            // No splitting???
+            
+
+            /*
+            // Copy the first 2 words of the ptr block (since it will be 
+            // overwritten when inserted as a "free" block)
+            uintptr_t a = GET(ptr);
+            uintptr_t b = GET(ptr + WSIZE);
+
+            // Check if the current block needs to be promoted
+            void** new_free_list = get_free_list(combined_size);
+            insert_to_list_head(ptr, new_free_list);
+
+            place(ptr, requested_block_size);
+
+            PUT_P(HDRP(ptr), PACK(combined_size, 1));
+            PUT_P(FTRP(ptr), PACK(combined_size, 1));
+
+            // Write back the overwritten words
+            PUT_P(ptr, a);
+            PUT_P(ptr + WSIZE, b);
+            */
+
+            return ptr;
+        }
+    }
+
 
     void *oldptr = ptr;
     void *newptr;
@@ -532,12 +591,12 @@ void *mm_realloc(void *ptr, size_t size)
 
     newptr = mm_malloc(size);
     if (newptr == NULL)
-      return NULL;
+        return NULL;
 
     /* Copy the old data. */
     copySize = GET_SIZE(HDRP(oldptr));
     if (size < copySize)
-      copySize = size;
+        copySize = size;
     memcpy(newptr, oldptr, copySize);
     mm_free(oldptr);
     return newptr;
