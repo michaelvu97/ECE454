@@ -93,9 +93,40 @@ team_t team = {
 
 #define MIN_BLOCK_SIZE 4 * WSIZE
 
-void* heap_listp = NULL;
+#define FAST_LOG_2_FLOOR_BIT_OFFSET 5 
+#define BINDEX_MAX_SIZE 8
+#define BINDEX_INNER_MAX_SIZE BINDEX_MAX_SIZE + FAST_LOG_2_FLOOR_BIT_OFFSET
 
-void* free_list_head = NULL;
+void* free_lists[BINDEX_MAX_SIZE];
+
+static int get_bindex(size_t asize)
+{
+    DEBUG("Getting bindex for size %ld\n", (unsigned long) asize);
+    ASSERT(asize >= MIN_BLOCK_SIZE);
+
+    int index = FAST_LOG_2_FLOOR_BIT_OFFSET;
+    asize >>= FAST_LOG_2_FLOOR_BIT_OFFSET;
+    while ((asize >>= 1) && (index < BINDEX_INNER_MAX_SIZE - 1))
+    {
+        ++index;
+
+        // Check for infinite loops
+        ASSERT(index < 10000000);
+    }
+    ASSERT(index <= 12);
+    ASSERT(index >= 5);
+
+    // 0th bin is 32B to 64B.
+    return index - 5;
+}
+
+static inline void** get_free_list(size_t asize)
+{
+    ASSERT(asize >= MIN_BLOCK_SIZE);
+    ASSERT(get_bindex(asize) < BINDEX_MAX_SIZE);
+    ASSERT(get_bindex(asize) >= 0);
+    return free_lists + get_bindex(asize);
+}
 
 /**********************************************************
  * mm_init
@@ -104,6 +135,7 @@ void* free_list_head = NULL;
  **********************************************************/
 int mm_init(void)
 {
+    void* heap_listp;
     if ((heap_listp = mem_sbrk(4*WSIZE)) == (void *)-1)
         return -1;
 
@@ -113,14 +145,17 @@ int mm_init(void)
     PUT(heap_listp + (3 * WSIZE), PACK(0, 1));    // epilogue header
     heap_listp += DSIZE;
 
-    free_list_head = NULL;
+    for (int i = 0; i < BINDEX_MAX_SIZE; ++i)
+        free_lists[i] = NULL;
 
     return 0;
 }
 
-static void remove_from_free_list(void* bp)
+static void remove_from_free_list(void* bp, void** free_list_head)
 {
     ASSERT(bp);
+    ASSERT(free_list_head);
+    ASSERT(*free_list_head);
     void* prev = PREV_FREE_BLKP(bp);
     void* next = NEXT_FREE_BLKP(bp);
 
@@ -128,12 +163,12 @@ static void remove_from_free_list(void* bp)
 
     if (prev)
     {
-        ASSERT(bp != free_list_head);
+        ASSERT(bp != *free_list_head);
         PUT_P(HDR_NEXT_P(prev), next);
     } else 
     {
-        ASSERT(bp == free_list_head);
-        free_list_head = next;
+        ASSERT(bp == *free_list_head);
+        *free_list_head = next;
     }
 
     if (next)
@@ -145,17 +180,19 @@ static void remove_from_free_list(void* bp)
 }
 
 // Assumes that bp is not currently inside the list.
-static void insert_to_list_head(void* bp)
+static void insert_to_list_head(void* bp, void** free_list_head)
 {
     ASSERT(bp);
+    ASSERT(free_list_head);
+    void* old_head = *free_list_head;
     PUT_P(HDR_PREV_P(bp), 0x0);
-    PUT_P(HDR_NEXT_P(bp), free_list_head);
-    if (free_list_head)
+    PUT_P(HDR_NEXT_P(bp), old_head);
+    if (old_head)
     {
-        PUT_P(HDR_PREV_P(free_list_head), bp);
+        PUT_P(HDR_PREV_P(old_head), bp);
     }
 
-    free_list_head = bp;
+    *free_list_head = bp;
 }
 
 
@@ -195,13 +232,25 @@ void *coalesce(void *bp)
 
         // Coalesce with next block
 
+        size_t c_size = GET_SIZE(HDRP(c_bp));
+
         // Remove c from the free list
-        remove_from_free_list(c_bp);
+        remove_from_free_list(c_bp, get_free_list(c_size));
 
         // Merge these blocks.
-        size += GET_SIZE(HDRP(c_bp));
-        PUT(HDRP(bp), PACK(size, 0));
-        PUT(FTRP(bp), PACK(size, 0));
+        size_t new_size = size + c_size;
+        PUT(HDRP(bp), PACK(new_size, 0));
+        PUT(FTRP(bp), PACK(new_size, 0));
+
+        void** old_free_list = get_free_list(size);
+        void** new_free_list = get_free_list(new_size);
+        if (old_free_list != new_free_list)
+        {
+            // bp must be moved to the new free list
+            remove_from_free_list(bp, old_free_list);
+            insert_to_list_head(bp, new_free_list);
+        }
+
         return (bp);
     } else if (!prev_alloc && next_alloc)
     {
@@ -209,26 +258,48 @@ void *coalesce(void *bp)
         // Coalesce with prev block
 
         // Remove the current block from the free list
-        remove_from_free_list(bp);
+        remove_from_free_list(bp, get_free_list(size));
+        size_t a_size = GET_SIZE(HDRP(a_bp));
+        size_t new_size = size + a_size;
+        PUT(FTRP(bp), PACK(new_size, 0));
+        PUT(HDRP(a_bp), PACK(new_size, 0));
 
-        size += GET_SIZE(HDRP(a_bp));
-        PUT(FTRP(bp), PACK(size, 0));
-        PUT(HDRP(a_bp), PACK(size, 0));
+        void** old_free_list = get_free_list(a_size);
+        void** new_free_list = get_free_list(new_size);
+        if (old_free_list != new_free_list)
+        {
+            remove_from_free_list(a_bp, old_free_list);
+            insert_to_list_head(a_bp, new_free_list);
+        }
+
         return (PREV_BLKP(bp));
     } else
     {   
         DEBUG("Both are free\n");
 
+        size_t c_size = GET_SIZE(HDRP(c_bp));
+
         // Remove c from the list
-        remove_from_free_list(c_bp);
+        remove_from_free_list(c_bp, get_free_list(c_size));
 
         // Remove b from the list
-        remove_from_free_list(bp);
+        remove_from_free_list(bp, get_free_list(size));
+
+        size_t a_size = GET_SIZE(HDRP(a_bp));
 
         // a's pointers do not change.
-        size += GET_SIZE(HDRP(a_bp)) + GET_SIZE(HDRP(c_bp));
-        PUT(HDRP(PREV_BLKP(bp)), PACK(size,0));
-        PUT(FTRP(NEXT_BLKP(bp)), PACK(size,0));
+        size_t new_size = size + a_size + c_size;
+        PUT(HDRP(PREV_BLKP(bp)), PACK(new_size,0));
+        PUT(FTRP(NEXT_BLKP(bp)), PACK(new_size,0));
+
+        void** old_free_list = get_free_list(a_size);
+        void** new_free_list = get_free_list(new_size);
+
+        if (old_free_list != new_free_list)
+        {
+            remove_from_free_list(a_bp, old_free_list);
+            insert_to_list_head(a_bp, new_free_list);
+        }
 
         return (PREV_BLKP(bp));
     }
@@ -262,7 +333,7 @@ void* extend_heap(size_t words)
     PUT(HDRP(NEXT_BLKP(bp)), PACK(0, 1));        // new epilogue header
 
     // Insert the new free block into the linked list
-    insert_to_list_head(bp);
+    insert_to_list_head(bp, get_free_list(size));
 
     /* Coalesce if the previous block was free */
     return coalesce(bp);
@@ -278,14 +349,18 @@ void* extend_heap(size_t words)
 void* find_fit(size_t asize)
 {
     DEBUG("Finding fit size: %d\n", (int) asize);
-    void * bp;
-    for (bp = free_list_head; bp != NULL; bp = NEXT_FREE_BLKP(bp))
+
+    void** free_list_min = get_free_list(asize);
+
+    for (void* bp = *free_list_min; bp != NULL; bp = NEXT_FREE_BLKP(bp))
     {
+        // First fit
         if (asize <= GET_SIZE(HDRP(bp)))
         {
             return bp;
         }
     }
+
     return NULL;
 }
 
@@ -333,17 +408,16 @@ void place(void* bp, size_t asize)
         PUT_P(HDRP(bp), PACK(selected_block_size, 0));
 
         // Add the split block to the free list
-        insert_to_list_head(new_bp);
+        insert_to_list_head(new_bp, get_free_list(new_block_size));
 
         ASSERT(GET_SIZE(HDRP(bp)) == selected_block_size);
         ASSERT(GET_SIZE(FTRP(bp)) == selected_block_size);
         ASSERT(GET_SIZE(HDRP(new_bp)) == new_block_size);
         ASSERT(GET_SIZE(FTRP(new_bp)) == new_block_size);
-        ASSERT(GET(HDR_NEXT_P(new_bp)));
         ASSERT(!GET(HDR_PREV_P(new_bp)));
     }
 
-    remove_from_free_list(bp);
+    remove_from_free_list(bp, get_free_list(bsize));
 
     // Mark this block as allocated.
     PUT(HDRP(bp), PACK(selected_block_size, 1));
@@ -370,12 +444,12 @@ void mm_free(void *bp)
     ASSERT(GET_SIZE(FTRP(bp)) == size);
 
     // Insert the free block into the free list.
-    void* old_head = free_list_head;
-    free_list_head = bp;
+    void* old_head = *get_free_list(size);
+    *get_free_list(size) = bp;
 
     // Link the inserted block to the old head of the list.
-    PUT(HDR_NEXT_P(bp), (uintptr_t) old_head);
-    PUT(HDR_PREV_P(bp), (uintptr_t) 0x0);
+    PUT_P(HDR_NEXT_P(bp), old_head);
+    PUT_P(HDR_PREV_P(bp), 0x0);
     if (old_head != NULL)
     {
         // The list was not empty before, add the backwards link to the
