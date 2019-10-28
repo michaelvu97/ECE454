@@ -44,7 +44,7 @@ team_t team = {
 #endif
 
 // Comment this out to disable assertions
-// #define ASSERTIONS_ENABLED
+#define ASSERTIONS_ENABLED
 #ifdef ASSERTIONS_ENABLED
     #define ASSERT(x) if (!(x)) \
     { \
@@ -336,6 +336,7 @@ void* extend_heap(size_t words)
     return coalesce(bp);
 }
 
+#define FIT_ALGORITHM find_fit_best_fit
 
 /**********************************************************
  * find_fit
@@ -343,19 +344,51 @@ void* extend_heap(size_t words)
  * Return NULL if no free blocks can handle that size
  * Assumed that asize is aligned
  **********************************************************/
-void* find_fit(size_t asize)
+void* find_fit_first_fit(size_t asize)
 {
     DEBUG("Finding fit size: %d\n", (int) asize);
 
     void** free_list_min = get_free_list(asize);
+    void** free_list_end = free_lists + BINDEX_MAX_SIZE;
 
-    for (void* bp = *free_list_min; bp != NULL; bp = NEXT_FREE_BLKP(bp))
+    for (void** curr_free_list_head = free_list_min; curr_free_list_head != free_list_end; curr_free_list_head++)
     {
-        // First fit
-        if (asize <= GET_SIZE(HDRP(bp)))
+        for (void* bp = *curr_free_list_head; bp != NULL; bp = NEXT_FREE_BLKP(bp))
         {
-            return bp;
+            // First fit
+            if (asize <= GET_SIZE(HDRP(bp)))
+            {
+                return bp;
+            }
         }
+    }
+
+    return NULL;
+}
+
+void* find_fit_best_fit(size_t size)
+{
+    void** free_list_min = get_free_list(size);
+    void** free_list_end = free_lists + BINDEX_MAX_SIZE;
+
+    for (void** curr_free_list_head = free_list_min; curr_free_list_head != free_list_end; curr_free_list_head++)
+    {
+        void* best_fit_ptr = NULL;
+        size_t best_fit_size = ~0;
+        ASSERT(best_fit_size > 0);
+        for (void* bp = *curr_free_list_head; bp != NULL; bp = NEXT_FREE_BLKP(bp))
+        {
+            // First fit
+            size_t block_size = GET_SIZE(HDRP(bp));
+            if (size <= block_size && block_size < best_fit_size)
+            {
+                best_fit_ptr = bp;
+                best_fit_size = block_size;
+            }
+        }
+
+        if (best_fit_ptr)
+            return best_fit_ptr;
     }
 
     return NULL;
@@ -499,7 +532,7 @@ void *mm_malloc(size_t size)
     ASSERT((asize % 8) == 0);
 
     /* Search the free list for a fit */
-    if ((bp = find_fit(asize)) != NULL) {
+    if ((bp = FIT_ALGORITHM(asize)) != NULL) {
         place(bp, asize);
         return bp;
     }
@@ -510,42 +543,29 @@ void *mm_malloc(size_t size)
         return NULL;
     place(bp, asize);
     return bp;
-
 }
 
-/**********************************************************
- * mm_realloc
- * Implemented simply in terms of mm_malloc and mm_free
- *********************************************************/
-void *mm_realloc(void *ptr, size_t size)
+void* mm_realloc_grow(void* ptr, size_t block_size)
 {
-    DEBUG("[[Realloc]] %lx to size %d\n", (unsigned long) ptr, (int) size);
-    /* If size == 0 then this is just free, and we return NULL. */
-    if(size == 0){
-        mm_free(ptr);
-        return NULL;
-    }
+    ASSERT(ptr);
+    ASSERT(block_size >= MIN_BLOCK_SIZE);
+    ASSERT(!(block_size % 16));
 
-    // TODO: alloc realloc to shrink the region.
-
-    /* If oldptr is NULL, then this is just malloc. */
-    if (ptr == NULL)
-        return (mm_malloc(size));
+    size_t current_block_size = GET_SIZE(HDRP(ptr));
 
     // Check if it can coalesce with the adjacent block (if free).
     void* next_bp = NEXT_BLKP(ptr);
     if (!GET_ALLOC(HDRP(next_bp)))
     {
-        size_t current_block_size = GET_SIZE(HDRP(ptr));
+        
         size_t next_block_size = GET_SIZE(HDRP(next_bp));
         
         size_t combined_size = current_block_size + next_block_size;
-        size_t requested_block_size = user_size_to_block_size(size);
-        if (requested_block_size <= combined_size)
+        if (block_size <= combined_size)
         {
             DEBUG("Reallocing by coalescing with next block: %ld "
                 "(%ld,%ld)->%ld\n",
-                (unsigned long) size,
+                (unsigned long) block_size,
                 (unsigned long) current_block_size,
                 (unsigned long) next_block_size,
                 (unsigned long) combined_size);
@@ -557,12 +577,12 @@ void *mm_realloc(void *ptr, size_t size)
             remove_from_free_list(next_bp, get_free_list(next_block_size));
 
             // Check if the resulting block can be split
-            if (combined_size - requested_block_size >= MIN_BLOCK_SIZE)
+            if (combined_size - block_size >= MIN_BLOCK_SIZE)
             {
-                size_t new_free_bp_size = combined_size - requested_block_size;
+                size_t new_free_bp_size = combined_size - block_size;
                 // Overwrite the old footer
-                PUT_P(HDRP(ptr), PACK(requested_block_size, 1));
-                PUT_P(FTRP(ptr), PACK(requested_block_size, 1));
+                PUT_P(HDRP(ptr), PACK(block_size, 1));
+                PUT_P(FTRP(ptr), PACK(block_size, 1));
 
                 void* new_free_bp = FTRP(ptr) + DSIZE;
 
@@ -578,20 +598,76 @@ void *mm_realloc(void *ptr, size_t size)
         }
     }
 
-
     void *oldptr = ptr;
     void *newptr;
-    size_t copySize;
 
-    newptr = mm_malloc(size);
+    newptr = mm_malloc(block_size);
     if (newptr == NULL)
         return NULL;
 
     /* Copy the old data. */
-    copySize = GET_SIZE(HDRP(oldptr));
-    if (size < copySize)
-        copySize = size;
-    memcpy(newptr, oldptr, copySize);
+    memcpy(newptr, oldptr, current_block_size);
     mm_free(oldptr);
     return newptr;
+}
+
+void* mm_realloc_shrink(void* ptr, size_t block_size)
+{
+    ASSERT(ptr);
+    ASSERT(block_size >= MIN_BLOCK_SIZE);
+    ASSERT(!(block_size % 16));
+
+    size_t old_block_size = GET_SIZE(HDRP(ptr));
+    size_t new_free_block_size = old_block_size - block_size;
+
+    DEBUG("SHRINK: %ld->(%ld,%ld)\n", (unsigned long) old_block_size, 
+        (unsigned long) block_size, (unsigned long) new_free_block_size);
+
+    if (new_free_block_size < MIN_BLOCK_SIZE)
+        return ptr; // Cannot create valid free space, no-op.
+
+    // Shrink the headers of this block.
+    PUT_P(HDRP(ptr), PACK(block_size, 1));
+    PUT_P(FTRP(ptr), PACK(block_size, 1));
+
+    void* new_bp = FTRP(ptr) + DSIZE;
+
+    PUT_P(HDRP(new_bp), PACK(new_free_block_size, 0));
+    PUT_P(FTRP(new_bp), PACK(new_free_block_size, 0));
+
+    insert_to_list_head(new_bp, get_free_list(new_free_block_size));
+
+    coalesce(new_bp);
+
+    // Free the remaining space
+    return ptr;
+}   
+
+/**********************************************************
+ * mm_realloc
+ * Implemented simply in terms of mm_malloc and mm_free
+ *********************************************************/
+void *mm_realloc(void *ptr, size_t size)
+{
+    DEBUG("[[Realloc]] %lx to size %d\n", (unsigned long) ptr, (int) size);
+
+    /* If size == 0 then this is just free, and we return NULL. */
+    if (size == 0) {
+        mm_free(ptr);
+        return NULL;
+    }
+
+    /* If oldptr is NULL, then this is just malloc. */
+    if (ptr == NULL)
+        return (mm_malloc(size));
+
+    size_t requested_block_size = user_size_to_block_size(size);
+    size_t old_size = GET_SIZE(HDRP(ptr));
+
+    if (requested_block_size == old_size)
+        return ptr; // No size change.
+    else if (requested_block_size > old_size)
+        return mm_realloc_grow(ptr, requested_block_size);
+    else
+        return mm_realloc_shrink(ptr, requested_block_size);
 }
