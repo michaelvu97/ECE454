@@ -24,7 +24,7 @@
  ********************************************************/
 team_t team = {
     /* Team name */
-    "new team name",
+    "🅱️alloc",
     /* First member's full name */
     "Michael Vu",
     /* First member's email address */
