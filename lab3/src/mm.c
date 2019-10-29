@@ -95,6 +95,11 @@ team_t team = {
 
 #define MIN_BLOCK_SIZE 4 * WSIZE
 
+// Heuristic, 1 for always split when possible.
+// Currently, 2 seems to be a good heuristic.
+#define SPLIT_SIZE_RATIO 2
+#define MIN_SPLIT_SIZE SPLIT_SIZE_RATIO * MIN_BLOCK_SIZE
+
 #define FAST_LOG_2_FLOOR_BIT_OFFSET 5 
 #define BINDEX_MAX_SIZE 8
 
@@ -346,7 +351,7 @@ void* extend_heap(size_t words)
  * Return NULL if no free blocks can handle that size
  * Assumed that asize is aligned
  **********************************************************/
-void* find_fit_first_fit(size_t asize)
+void* find_fit_first_fit(register size_t asize)
 {
     DEBUG("Finding fit size: %d\n", (int) asize);
 
@@ -357,9 +362,9 @@ void* find_fit_first_fit(size_t asize)
         curr_free_list_head != free_list_end; 
         curr_free_list_head++)
     {
-        for (void* bp = *curr_free_list_head; 
+        for (register uintptr_t* bp = (uintptr_t*) *curr_free_list_head; 
             bp != NULL; 
-            bp = NEXT_FREE_BLKP(bp))
+            bp = (uintptr_t*) *bp)
         {
             // First fit
             if (asize <= GET_SIZE(HDRP(bp)))
@@ -372,7 +377,7 @@ void* find_fit_first_fit(size_t asize)
     return NULL;
 }
 
-void* find_fit_best_fit(size_t size)
+void* find_fit_best_fit(register size_t size)
 {
     void** free_list_min = get_free_list(size);
     void** free_list_end = free_lists + BINDEX_MAX_SIZE;
@@ -381,16 +386,18 @@ void* find_fit_best_fit(size_t size)
         curr_free_list_head != free_list_end; 
         curr_free_list_head++)
     {
-        void* best_fit_ptr = NULL;
-        size_t best_fit_size = ~0;
+        register void* best_fit_ptr = NULL;
+        register size_t best_fit_size = ~0;
         ASSERT(best_fit_size > 0);
-        for (void* bp = *curr_free_list_head;
-            bp != NULL; 
-            bp = NEXT_FREE_BLKP(bp))
+        for (register uintptr_t* bp = (uintptr_t*) *curr_free_list_head;
+            bp != NULL;
+            bp = (uintptr_t*) *bp)
         {
             // First fit
-            size_t block_size = GET_SIZE(HDRP(bp));
-            if (size <= block_size && block_size < best_fit_size)
+            register size_t block_size = *(bp - 1);
+            if (size == block_size)
+                return bp;
+            else if (size < block_size && block_size < best_fit_size)
             {
                 best_fit_ptr = bp;
                 best_fit_size = block_size;
@@ -420,7 +427,7 @@ void place(void* bp, size_t asize)
 
     size_t selected_block_size = bsize;
 
-    if (bsize - asize >= MIN_BLOCK_SIZE)
+    if (bsize - asize >= MIN_SPLIT_SIZE)
     {
         // Split the block.
         // TODO: somewhere in this block breaks the memory structure.
@@ -587,7 +594,7 @@ void* mm_realloc_grow(void* ptr, size_t block_size)
             remove_from_free_list(next_bp, get_free_list(next_block_size));
 
             // Check if the resulting block can be split
-            if (combined_size - block_size >= MIN_BLOCK_SIZE)
+            if (combined_size - block_size >= MIN_SPLIT_SIZE)
             {
                 size_t new_free_bp_size = combined_size - block_size;
                 // Overwrite the old footer
@@ -636,7 +643,7 @@ void* mm_realloc_shrink(void* ptr, size_t block_size)
     DEBUG("SHRINK: %ld->(%ld,%ld)\n", (unsigned long) old_block_size, 
         (unsigned long) block_size, (unsigned long) new_free_block_size);
 
-    if (new_free_block_size < MIN_BLOCK_SIZE)
+    if (new_free_block_size < MIN_SPLIT_SIZE)
         return ptr; // Cannot create valid free space, no-op.
 
     // Shrink the headers of this block.
