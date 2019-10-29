@@ -1,13 +1,3 @@
-/*
- * This implementation replicates the implicit list implementation
- * provided in the textbook
- * "Computer Systems - A Programmer's Perspective"
- * Blocks are never coalesced or reused.
- * Realloc is implemented directly using mm_malloc and mm_free.
- *
- * NOTE TO STUDENTS: Replace this header comment with your own header
- * comment that gives a high level description of your solution.
- */
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -18,10 +8,6 @@
 #include "mm.h"
 #include "memlib.h"
 
-/*********************************************************
- * NOTE TO STUDENTS: Before you do anything else, please
- * provide your team information in the following struct.
- ********************************************************/
 team_t team = {
     /* Team name */
     "🅱️alloc",
@@ -46,7 +32,7 @@ team_t team = {
 #endif
 
 // Comment this out to disable assertions
-#define ASSERTIONS_ENABLED
+// #define ASSERTIONS_ENABLED
 #ifdef ASSERTIONS_ENABLED
     #define ASSERT(x) if (!(x)) \
     { \
@@ -110,12 +96,6 @@ team_t team = {
 static size_t SIZE_T_MAX = ~0;
 
 void* free_lists[BINDEX_MAX_SIZE];
-
-// #define STATS_ENABLED
-#ifdef STATS_ENABLED
-double stats_avg_size = 0;
-long stats_avg_size_num = 0;
-#endif
 
 static int get_bindex(size_t asize)
 {
@@ -379,59 +359,10 @@ void* extend_heap(size_t words)
     return coalesce(bp);
 }
 
-
-void* find_fit_first_fit(register size_t asize)
-{
-    DEBUG("Finding fit size: %d\n", (int) asize);
-
-    void** free_list_min = get_free_list(asize);
-    void** free_list_end = free_lists + BINDEX_MAX_SIZE;
-
-    for (void** curr_free_list_head = free_list_min; 
-        curr_free_list_head != free_list_end; 
-        curr_free_list_head++)
-    {
-        for (register uintptr_t* bp = (uintptr_t*) *curr_free_list_head; 
-            bp != NULL; 
-            bp = (uintptr_t*) *bp)
-        {
-            // First fit
-            if (asize <= GET_SIZE(HDRP(bp)))
-            {
-                return bp;
-            }
-        }
-    }
-
-    return NULL;
-}
-
-void* find_fit_close_fit(register size_t asize)
-{
-    for (register uintptr_t* bp = (uintptr_t*) *get_free_list(asize);
-        bp != NULL; 
-        bp = (uintptr_t*) *bp)
-    {
-        register size_t curr_block_size = GET_SIZE(HDRP(bp));
-        // First fit
-        if (asize <= curr_block_size && curr_block_size - asize <= CLOSE_FIT_THRESHOLD)
-        {
-            return bp;
-        }
-    }
-    return find_fit_first_fit(asize);
-}
-
 #define BEST_FIT_LIMIT 10
 void* find_fit_best_fit(register size_t size)
 {
     uintptr_t** free_list_min = (uintptr_t**) get_free_list(size);
-    #ifdef STATS_ENABLED
-        stats_avg_size += (double) get_bindex(size);
-        stats_avg_size_num++;
-        printf("%lf\n", stats_avg_size / stats_avg_size_num);
-    #endif
-
     uintptr_t** free_list_end = (uintptr_t**) free_lists + BINDEX_MAX_SIZE;
 
     for (uintptr_t** curr_free_list_head = free_list_min; 
