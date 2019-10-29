@@ -379,19 +379,19 @@ void* find_fit_first_fit(register size_t asize)
 
 void* find_fit_best_fit(register size_t size)
 {
-    void** free_list_min = get_free_list(size);
-    void** free_list_end = free_lists + BINDEX_MAX_SIZE;
+    uintptr_t** free_list_min = (uintptr_t**) get_free_list(size);
+    uintptr_t** free_list_end = (uintptr_t**) free_lists + BINDEX_MAX_SIZE;
 
-    for (void** curr_free_list_head = free_list_min; 
+    for (uintptr_t** curr_free_list_head = free_list_min; 
         curr_free_list_head != free_list_end; 
         curr_free_list_head++)
     {
         register void* best_fit_ptr = NULL;
         register size_t best_fit_size = ~0;
         ASSERT(best_fit_size > 0);
-        for (register uintptr_t* bp = (uintptr_t*) *curr_free_list_head;
+        for (register uintptr_t* bp = *curr_free_list_head;
             bp != NULL;
-            bp = (uintptr_t*) *bp)
+            bp = *bp)
         {
             // First fit
             register size_t block_size = *(bp - 1);
