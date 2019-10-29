@@ -46,7 +46,7 @@ team_t team = {
 #endif
 
 // Comment this out to disable assertions
-// #define ASSERTIONS_ENABLED
+#define ASSERTIONS_ENABLED
 #ifdef ASSERTIONS_ENABLED
     #define ASSERT(x) if (!(x)) \
     { \
@@ -100,28 +100,64 @@ team_t team = {
 #define SPLIT_SIZE_RATIO 2
 #define MIN_SPLIT_SIZE SPLIT_SIZE_RATIO * MIN_BLOCK_SIZE
 
+// Allocations under this size in bytes will use first fit
+#define FIRST_FIT_THRESHOLD 63
+#define CLOSE_FIT_THRESHOLD 32
+
 #define FAST_LOG_2_FLOOR_BIT_OFFSET 5 
-#define BINDEX_MAX_SIZE 8
+#define BINDEX_MAX_SIZE 13
+
+static size_t SIZE_T_MAX = ~0;
 
 void* free_lists[BINDEX_MAX_SIZE];
+
+// #define STATS_ENABLED
+#ifdef STATS_ENABLED
+double stats_avg_size = 0;
+long stats_avg_size_num = 0;
+#endif
 
 static int get_bindex(size_t asize)
 {
     ASSERT(asize >= MIN_BLOCK_SIZE);
 
-    int index = 0;
-    asize >>= FAST_LOG_2_FLOOR_BIT_OFFSET;
-    while ((asize >>= 1) && (index < BINDEX_MAX_SIZE - 1))
-    {
-        ++index;
+    if (asize == 32)
+        return 0;
 
-        // Check for infinite loops
-        ASSERT(index < 10000000);
-    }
-    ASSERT(index >= 0);
-    ASSERT(index <= BINDEX_MAX_SIZE);
-    
-    return index;
+    if (asize < 40)
+        return 1;
+
+    if (asize < 48)
+        return 2;
+
+    if (asize < 56)
+        return 3;
+
+    if (asize < 64)
+        return 4;
+
+    if (asize < 128)
+        return 5;
+
+    if (asize < 256)
+        return 6;
+
+    if (asize < 512)
+        return 7;
+
+    if (asize < 1024)
+        return 8;
+
+    if (asize < 2048)
+        return 9;
+
+    if (asize < 4096)
+        return 10;
+
+    if (asize < 8192)
+        return 11;
+
+    return 12;
 }
 
 static inline void** get_free_list(size_t asize)
@@ -343,14 +379,7 @@ void* extend_heap(size_t words)
     return coalesce(bp);
 }
 
-#define FIT_ALGORITHM find_fit_best_fit
 
-/**********************************************************
- * find_fit
- * Traverse the heap searching for a block to fit asize
- * Return NULL if no free blocks can handle that size
- * Assumed that asize is aligned
- **********************************************************/
 void* find_fit_first_fit(register size_t asize)
 {
     DEBUG("Finding fit size: %d\n", (int) asize);
@@ -377,9 +406,32 @@ void* find_fit_first_fit(register size_t asize)
     return NULL;
 }
 
+void* find_fit_close_fit(register size_t asize)
+{
+    for (register uintptr_t* bp = (uintptr_t*) *get_free_list(asize);
+        bp != NULL; 
+        bp = (uintptr_t*) *bp)
+    {
+        register size_t curr_block_size = GET_SIZE(HDRP(bp));
+        // First fit
+        if (asize <= curr_block_size && curr_block_size - asize <= CLOSE_FIT_THRESHOLD)
+        {
+            return bp;
+        }
+    }
+    return find_fit_first_fit(asize);
+}
+
+#define BEST_FIT_LIMIT 10
 void* find_fit_best_fit(register size_t size)
 {
     uintptr_t** free_list_min = (uintptr_t**) get_free_list(size);
+    #ifdef STATS_ENABLED
+        stats_avg_size += (double) get_bindex(size);
+        stats_avg_size_num++;
+        printf("%lf\n", stats_avg_size / stats_avg_size_num);
+    #endif
+
     uintptr_t** free_list_end = (uintptr_t**) free_lists + BINDEX_MAX_SIZE;
 
     for (uintptr_t** curr_free_list_head = free_list_min; 
@@ -387,11 +439,15 @@ void* find_fit_best_fit(register size_t size)
         curr_free_list_head++)
     {
         register void* best_fit_ptr = NULL;
-        register size_t best_fit_size = ~0;
+        register size_t best_fit_size = SIZE_T_MAX;
         ASSERT(best_fit_size > 0);
-        for (register uintptr_t* bp = *curr_free_list_head;
-            bp != NULL;
-            bp = *bp)
+
+        register int i;
+        for (register uintptr_t* bp = *curr_free_list_head, i = 0;
+            bp != NULL && i < BEST_FIT_LIMIT;
+
+            bp = (uintptr_t*) *bp,
+            i++)
         {
             // First fit
             register size_t block_size = *(bp - 1);
@@ -409,6 +465,11 @@ void* find_fit_best_fit(register size_t size)
     }
 
     return NULL;
+}
+
+static inline void* find_fit(size_t size)
+{
+    return find_fit_best_fit(size);
 }
 
 /**********************************************************
@@ -549,7 +610,7 @@ void *mm_malloc(size_t size)
     ASSERT((asize % 8) == 0);
 
     /* Search the free list for a fit */
-    if ((bp = FIT_ALGORITHM(asize)) != NULL) {
+    if ((bp = find_fit(asize)) != NULL) {
         place(bp, asize);
         return bp;
     }
