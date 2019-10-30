@@ -86,11 +86,6 @@ team_t team = {
 #define SPLIT_SIZE_RATIO 2
 #define MIN_SPLIT_SIZE SPLIT_SIZE_RATIO * MIN_BLOCK_SIZE
 
-// Allocations under this size in bytes will use first fit
-#define FIRST_FIT_THRESHOLD 63
-#define CLOSE_FIT_THRESHOLD 32
-
-#define FAST_LOG_2_FLOOR_BIT_OFFSET 5 
 #define BINDEX_MAX_SIZE 13
 
 static size_t SIZE_T_MAX = ~0;
@@ -359,7 +354,7 @@ void* extend_heap(size_t words)
     return coalesce(bp);
 }
 
-#define BEST_FIT_LIMIT 10
+#define BEST_FIT_LIMIT 40
 void* find_fit_best_fit(register size_t size)
 {
     uintptr_t** free_list_min = (uintptr_t**) get_free_list(size);
