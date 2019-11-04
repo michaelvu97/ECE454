@@ -8,4 +8,4 @@ randtrack: list.h hash.h defs.h randtrack.cc
 
 
 clean:
-	rm -f *.o randtrack randtrack_global_lock randtrack_tm randtrack_list_lock
+	rm -f *.o randtrack randtrack_global_lock randtrack_tm randtrack_list_lock randtrack_element_lock randtrack_reduction
