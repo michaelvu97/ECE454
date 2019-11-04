@@ -54,3 +54,4 @@ dkms.conf
 /lab2/bin/*
 /lab3/src/mdriver
 /lab4/randtrack
+/lab4/randtrack_global_lock
