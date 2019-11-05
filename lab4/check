@@ -10,6 +10,22 @@ sort -n tmp2.txt > tmp2s.txt
 
 diff tmp1s.txt tmp2s.txt
 
+./$1 1 1 > tmp1.txt
+./$1 4 1 > tmp2.txt
+
+sort -n tmp1.txt > tmp1s.txt
+sort -n tmp2.txt > tmp2s.txt
+
+diff tmp1s.txt tmp2s.txt
+
+./$1 2 1 > tmp1.txt
+./$1 4 1 > tmp2.txt
+
+sort -n tmp1.txt > tmp1s.txt
+sort -n tmp2.txt > tmp2s.txt
+
+diff tmp1s.txt tmp2s.txt
+
 rm -f tmp1.txt
 rm -f tmp2.txt
 rm -f tmp1s.txt
