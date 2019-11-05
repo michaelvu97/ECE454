@@ -44,6 +44,14 @@ public:
 // key value is "unsigned".  
 hash<sample,unsigned> h;
 
+#define HASH_MASK (1 << 5) - 1
+#define HASH_LOCK(key) ((key >> 2) & HASH_MASK)
+
+pthread_mutex_t h_lock[1 << 5];
+
+#define LOCK(key) (pthread_mutex_lock(&h_lock[HASH_LOCK(key)]))
+#define UNLOCK(key) (pthread_mutex_unlock(&h_lock[HASH_LOCK(key)]))
+
 struct worker_args {
     int num_seed_streams;
     int seed_start;
@@ -75,19 +83,18 @@ void* worker_thread(void* args_ptr)
 
             // if this sample has not been counted before
             sample* s;
-            __transaction_atomic 
+            LOCK(key);
+            if (!(s = h.lookup(key)))
             {
-                if (!(s = h.lookup(key)))
-                {
 
-                    // insert a new element for it into the hash table
-                    s = new sample(key);
-                    h.insert(s);
-                }
-
-                // increment the count for the sample
-                s->count++;
+                // insert a new element for it into the hash table
+                s = new sample(key);
+                h.insert(s);
             }
+
+            // increment the count for the sample
+            s->count++;
+            UNLOCK(key);
         }
     }
 }

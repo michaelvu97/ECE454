@@ -15,7 +15,7 @@
  * Please fill in the following team struct 
  */
 team_t team = {
-    "🅱️Threads",                  /* Team name */
+    "🅱️Thread",                  /* Team name */
 
     "Michael Vu",                    /* Member full name */
     "1002473272",                 /* Member student number */
