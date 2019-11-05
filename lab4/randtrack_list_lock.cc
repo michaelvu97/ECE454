@@ -44,10 +44,10 @@ public:
 // key value is "unsigned".  
 hash<sample,unsigned> h;
 
-#define HASH_MASK (1 << 5) - 1
+#define HASH_MASK (1 << 14) - 1
 #define HASH_LOCK(key) ((key >> 2) & HASH_MASK)
 
-pthread_mutex_t h_lock[1 << 5];
+pthread_mutex_t h_lock[1 << 14];
 
 #define LOCK(key) (pthread_mutex_lock(&h_lock[HASH_LOCK(key)]))
 #define UNLOCK(key) (pthread_mutex_unlock(&h_lock[HASH_LOCK(key)]))
