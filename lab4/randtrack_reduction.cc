@@ -4,7 +4,7 @@
 #include <pthread.h>
 
 #include "defs.h"
-#include "hash.h"
+#include "hash_reduction.h"
 
 #define SAMPLES_TO_COLLECT   10000000
 #define RAND_NUM_UPPER_BOUND   100000
@@ -106,6 +106,7 @@ int main (int argc, char* argv[])
     sscanf(argv[1], " %d", &num_threads); // not used in this single-threaded version
     sscanf(argv[2], " %d", &samples_to_skip);
 
+    hash<sample,unsigned> combined_hash;
     hash<sample,unsigned> h[4];
 
     // Create worker threads
@@ -133,7 +134,10 @@ int main (int argc, char* argv[])
     }
 
     for (int i = 0; i < num_threads; i++)
-        arg[i].local_htable = arg + i;
+    {
+        arg[i].local_htable = h + i;
+        (h+i)->setup(14);
+    }
 
     for (int i = 0; i < num_threads; i++)
         pthread_create(&threads[i], NULL, &worker_thread, &arg[i]);
@@ -141,25 +145,33 @@ int main (int argc, char* argv[])
     for (int i = 0; i < num_threads; i++)
         pthread_join(threads[i], NULL);
 
-    h.setup(14);
+    combined_hash.setup(14);
 
     for (int i = 0; i < num_threads; i++)
     {
         // Merge this table
-        for ()
-        sample* s;
-        if (!(s = local_htable->lookup(key)))
+        unsigned size = arg[i].local_htable->get_my_size();
+
+        for (int j = 0; j < size; j++)
         {
+            list<sample, unsigned>* list = arg[i].local_htable->get_list(j);
+            sample* s;
+            sample* target_s;
+            while (s = list->pop())
+            {
+                unsigned key = s->key();
 
-            // insert a new element for it into the hash table
-            s = new sample(key);
-            local_htable->insert(s);
+                if (!(target_s = combined_hash.lookup(key)))
+                {
+                    // insert a new element for it into the hash table
+                    target_s = new sample(key);
+                    combined_hash.insert(target_s);
+                }
+                target_s->count += s->count;
+            }
         }
-
-        // increment the count for the sample
-        s->count++;
     }
 
     // print a list of the frequency of all samples
-    h.print();
+    combined_hash.print();
 }
