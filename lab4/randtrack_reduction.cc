@@ -4,7 +4,7 @@
 #include <pthread.h>
 
 #include "defs.h"
-#include "hash_list_lock.h"
+#include "hash.h"
 
 #define SAMPLES_TO_COLLECT   10000000
 #define RAND_NUM_UPPER_BOUND   100000
@@ -38,21 +38,17 @@ public:
     void print(FILE *f){printf("%d %d\n",my_key,count);}
 };
 
-// This instantiates an empty hash table
-// it is a C++ template, which means we define the types for
-// the element and key value here: element is "class sample" and
-// key value is "unsigned". 
-// A thread-safe hash table, using list-level locks.
-hash<sample,unsigned> h;
-
 struct worker_args {
     int num_seed_streams;
     int seed_start;
+    hash<sample,unsigned>* local_htable;
 };
 
 void* worker_thread(void* args_ptr)
 {
     struct worker_args worker_args = *((struct worker_args*) args_ptr);
+
+    hash<sample,unsigned>* local_htable = worker_args.local_htable;
 
     // process streams starting with different initial numbers
     for (
@@ -76,18 +72,16 @@ void* worker_thread(void* args_ptr)
 
             // if this sample has not been counted before
             sample* s;
-            h.lock(key);
-            if (!(s = h.lookup(key)))
+            if (!(s = local_htable->lookup(key)))
             {
 
                 // insert a new element for it into the hash table
                 s = new sample(key);
-                h.insert(s);
+                local_htable->insert(s);
             }
 
             // increment the count for the sample
             s->count++;
-            h.unlock(key);
         }
     }
 }
@@ -112,8 +106,7 @@ int main (int argc, char* argv[])
     sscanf(argv[1], " %d", &num_threads); // not used in this single-threaded version
     sscanf(argv[2], " %d", &samples_to_skip);
 
-    // initialize a 16K-entry (2**14) hash of empty lists
-    h.setup(14);
+    hash<sample,unsigned> h[4];
 
     // Create worker threads
     struct worker_args arg[4];
@@ -140,10 +133,32 @@ int main (int argc, char* argv[])
     }
 
     for (int i = 0; i < num_threads; i++)
+        arg[i].local_htable = arg + i;
+
+    for (int i = 0; i < num_threads; i++)
         pthread_create(&threads[i], NULL, &worker_thread, &arg[i]);
 
     for (int i = 0; i < num_threads; i++)
         pthread_join(threads[i], NULL);
+
+    h.setup(14);
+
+    for (int i = 0; i < num_threads; i++)
+    {
+        // Merge this table
+        for ()
+        sample* s;
+        if (!(s = local_htable->lookup(key)))
+        {
+
+            // insert a new element for it into the hash table
+            s = new sample(key);
+            local_htable->insert(s);
+        }
+
+        // increment the count for the sample
+        s->count++;
+    }
 
     // print a list of the frequency of all samples
     h.print();

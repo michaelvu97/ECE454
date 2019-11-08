@@ -57,3 +57,4 @@ dkms.conf
 /lab4/randtrack_global_lock
 /lab4/randtrack_tm
 /lab4/randtrack_list_lock
+/lab4/randtrack_reduction
