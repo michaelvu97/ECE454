@@ -1,0 +1,17 @@
+1. It is important to #ifdef out code that isn't used for different versions of randtrack, for two reasons: smaller compiled code side, and ensurance that code with different intended synchronization funcationality does not exist in the same compilation.
+
+2. Using TM compared to the global lock was slightly easier, since I didn't have to worry about unlocking the data structure after I was done with it, and the curly braces syntax made sure that I couldn't unintentionally leave it locked.
+
+3. I was able to implement this without modifiying the hash class, but it required knowing the internal hashing algorithm. So no, the list-level lock could not be implemented without modifying the hash class or knowing its internal implementation.
+
+4. No. Lookup returns a sample, which may be modified by a caller-thread. The caller thread modification does not guarantee synchronization, so just modifying lookup and insert is not enough to implement list-level locking.
+
+5. Again, no. For the same reason as 4, lookup_and_insert_if_absent would return an object reference which would not be mutex'd. The hash class would be safe from accidentally double-inserting a key, however modifications to the inserted object are not mutually exclusive.
+
+6. Yes. This is how I implemented it. The signature is hash::lock(key) and hash::unlock(key). The caller is responsible for calling lock before looking up, inserting, and modifying the objects in the hash, and unlocking afterwards.
+
+7. Implementing TM was easier than implementing list-level locks, because it didn't require modifying the hash class.
+
+8. The pros of a reduction approach is that it ensures that data in each thread is isolated, and doesn't require locking. The con is that is uses more memory to store the extra data structures (which will increase with the number of threads), and it requires more code to merge the hash tables (as well as modifiying the hash class to expose the underlying class).
+
+9. 
