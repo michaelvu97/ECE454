@@ -14,4 +14,10 @@
 
 8. The pros of a reduction approach is that it ensures that data in each thread is isolated, and doesn't require locking. The con is that is uses more memory to store the extra data structures (which will increase with the number of threads), and it requires more code to merge the hash tables (as well as modifiying the hash class to expose the underlying class).
 
-9. 
+9. Results:
+Program: [Base, global, tm, list, element, reduc]
+Avg Time: [10.506, 10.692, 13.26, 11.032, 10.962, 10.538]
+Overhead: [1.00, 1.01, 1.26, 1.05, 1.04, 1.00]
+
+The highest overhead is TM by a large margin.
+
