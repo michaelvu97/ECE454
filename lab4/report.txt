@@ -15,9 +15,40 @@
 8. The pros of a reduction approach is that it ensures that data in each thread is isolated, and doesn't require locking. The con is that is uses more memory to store the extra data structures (which will increase with the number of threads), and it requires more code to merge the hash tables (as well as modifiying the hash class to expose the underlying class).
 
 9. Results:
-Program: [Base, global, tm, list, element, reduc]
-Avg Time: [10.506, 10.692, 13.26, 11.032, 10.962, 10.538]
-Overhead: [1.00, 1.01, 1.26, 1.05, 1.04, 1.00]
+|Program  |Base |global|    tm|  list| element| reduc|
+|====================================================|
+|Avg Time |10.51| 10.69| 13.26| 11.03|   10.96| 10.54|
+|Overhead | 1.00|  1.01|  1.26|  1.05|    1.04|  1.00|
 
 The highest overhead is TM by a large margin.
 
+10. 
+
+|Program            | Base| global|    tm|  list| element| reduc|
+|===============================================================|
+|Avg Time 1 Thread  |10.51|  10.69| 13.26| 11.03|   10.96| 10.54|
+|Avg Time 2 Threads |10.35|   6.49| 9.923|  5.55|    5.58|  5.29|
+|Avg Time 4 Threads |10.38|   5.63|  5.90| 3.076|    2.98|  2.77|
+|---------------------------------------------------------------|
+|Speedup 1 Thread   | 1.00|   0.98|  0.79|  0.95|    0.96|  1.00|
+|Speedup 2 Threads  | 1.00|   1.59|  1.04|  1.86|    1.85|  1.96|
+|Speedup 4 Threads  | 1.00|   1.84|  1.76|  3.37|    3.48|  3.75|
+
+As the number of threads increases, the speedup increases the most for list lock, element lock, and reduction lock, and increase slightly for global and tm. Performance does not decrease for any of the programs. However,
+
+11. 
+|Program            | Base| global|    tm|  list| element| reduc|
+|===============================================================|
+|Avg Time 1 Thread  |20.51|  20.74| 23.53| 20.91|   21.23| 20.83| 
+|Avg Time 2 Threads |20.78|  11.39| 15.32| 10.78|   10.88| 10.71| 
+|Avg Time 4 Threads |20.99|   7.35|  9.10|  5.85|    5.66|  5.70|
+|---------------------------------------------------------------|
+|Speedup 1 Thread   | 1.00|   0.99|  0.87|  0.98|    0.97|  0.98|
+|Speedup 2 Threads  | 1.00|   1.83|  1.36|  1.93|    1.91|  1.94|
+|Speedup 4 Threads  | 1.00|   2.86|  2.31|  3.59|    3.71|  3.68|
+
+For the single threaded-case, the run times double for all programs (compared to 50 samples_to_skip). 
+For 4 threads: list, element, and reduc have a similar speedup as the 50 samples_to_skip case. 
+For global and tm, the speedup increases compared to the 50 samples_to_skip case. This is likely because a smaller fraction of time is spent inside the critical section and more time is spent inside gathering the random samples, so the impact of global locking/transactional memory is less significant.
+
+12. From my measurements, list locking appears to scale the best, while maintaining very good performance with a low number of threads. Reduction is a strong competitor, however the memory usage overhead is another metric which might impact perfomance as the parallelization scales. OptRus should ship the list lock approach.

@@ -33,4 +33,35 @@ def Q9():
     print(res)
     print(res_normal)    
 
-Q9()
+def Q10():
+    samples_to_skip = 50
+    res = []
+    for num_threads in [2,4]:
+        curr_res = []
+
+        for prog in progs:
+            curr_res.append(sum([run(prog, num_threads, samples_to_skip) for i in range(5)])/5.0)
+            print(prog + " complete")
+
+        res.append(curr_res)    
+
+    print(res)
+
+def Q11():
+    samples_to_skip = 100
+    res = []
+    for num_threads in [1, 2,4]:
+        curr_res = []
+
+        for prog in progs:
+            curr_res.append(sum([run(prog, num_threads, samples_to_skip) for i in range(5)])/5.0)
+            print(prog + " complete")
+
+        res.append(curr_res)    
+
+    print(res)    
+
+# Q9()
+# Q10()
+
+Q11()
