@@ -1,0 +1,9 @@
+#!/bin/csh
+
+cd lab5
+make clean
+cd ..
+tar -cvvf gol.tar lab5/
+gzip gol.tar
+submitece454f 5 gol.tar.gz report.txt
+rm gol.tar.gz

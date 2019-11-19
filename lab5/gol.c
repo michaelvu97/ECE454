@@ -160,7 +160,7 @@ main (int argc, char* argv[])
 
       /* Ping-pong between checkboard (contains the initial state) and
 	 inboard */
-      final_board = sequential_game_of_life (inboard, checkboard, nrows, ncols, gens_max);
+      final_board = sequential_game_of_life(inboard, checkboard, nrows, ncols, gens_max);
 
       if (boards_equalp (final_board, outboard, nrows, ncols))
 	printf ("Verification successful\n");

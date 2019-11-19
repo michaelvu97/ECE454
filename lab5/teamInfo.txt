@@ -1,4 +1,4 @@
-teamName: xxx
-student1_fullName: xxx
-student1_studentNumber: 123456789
-student1_email: xxx@mail.utoronto.ca
+teamName: 🅱️arallelization
+student1_fullName: Michael Vu
+student1_studentNumber: 1002473272
+student1_email: mike.vu@mail.utoronto.ca
