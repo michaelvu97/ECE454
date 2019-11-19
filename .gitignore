@@ -58,5 +58,5 @@ dkms.conf
 /lab4/randtrack_tm
 /lab4/randtrack_list_lock
 /lab4/randtrack_reduction
-/lab5/gol
-/lab5/initboard
+/src/gol
+/src/initboard
