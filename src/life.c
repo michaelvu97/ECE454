@@ -57,23 +57,21 @@ void* worker(void* argsp)
     worker_args args = *((worker_args*) argsp);
     int generation = 0;
     const int dim = args.dim;
-    const int LAMBDA = dim - 1;
+    // const int LAMBDA = dim - 1;
     char* source_board = args.source_board;
     char* target_board = args.target_board;
 
-
+    const int row_pixel_start = args.row_start * dim;
+    const int lim = args.row_end;
     while (generation < args.num_generations)
-    {
+    {   
         /*
          * DO WORK
          */
-
-        // Their impl
-        int lim = args.row_end;
-        for (int row = args.row_start; row < lim; row++)
+        for (int row = args.row_start, row_pixel = row_pixel_start; row < lim; row++, row_pixel += dim)
         {
-            const int row_north = mod (row - 1, dim);
-            const int row_south = mod (row + 1, dim);
+            const int row_north_pixel = mod (row - 1, dim) * dim;
+            const int row_south_pixel = mod (row + 1, dim) * dim;
 
             for (int col = 0; col < dim; col++)
             {
@@ -81,16 +79,16 @@ void* worker(void* argsp)
                 const int col_east = mod (col + 1, dim);
 
                 const char neighbor_count = 
-                    source_board[row_north * dim + col_west] + 
-                    source_board[row_north * dim + col] + 
-                    source_board[row_north * dim + col_east] + 
-                    source_board[row * dim + col_west] +
-                    source_board[row * dim + col_east] + 
-                    source_board[row_south * dim + col_west] +
-                    source_board[row_south * dim + col] + 
-                    source_board[row_south * dim + col_east];
+                    source_board[row_north_pixel + col_west] + 
+                    source_board[row_north_pixel + col] + 
+                    source_board[row_north_pixel + col_east] + 
+                    source_board[row_pixel + col_west] +
+                    source_board[row_pixel + col_east] + 
+                    source_board[row_south_pixel + col_west] +
+                    source_board[row_south_pixel + col] + 
+                    source_board[row_south_pixel + col_east];
 
-                target_board[col + dim*row] = alivep(neighbor_count, source_board[col + dim*row]);
+                target_board[col + row_pixel] = alivep(neighbor_count, source_board[col + row_pixel]);
             }
         }
 
