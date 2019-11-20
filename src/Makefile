@@ -46,7 +46,7 @@ $(BITBOARD_EXE): $(BITBOARD_OBJS)
 
 lifeseq.o: lifeseq.c life.h util.h
 
-life.o: life.c life.h util.h
+life.o: life.c life.h util.h custom_board.h
 
 load.o: load.c load.h
 

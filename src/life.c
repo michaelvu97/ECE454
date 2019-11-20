@@ -7,8 +7,10 @@
 #include "util.h"
 #include "stdlib.h"
 #include "stdio.h"
+#include "custom_board.h"
 
 #define NUM_WORKERS 4
+#define MAX_NUM_WORKERS 32
 
 #define FOREACH(i, lim) for (unsigned i = 0; i < lim; ++i)
 
@@ -23,7 +25,6 @@
     #define ASSERT(x)
 #endif
 
-
 /*****************************************************************************
  * Helper function definitions
  ****************************************************************************/
@@ -33,8 +34,8 @@ typedef struct worker_args {
     int row_start;
     int row_end;
     int num_generations;
-    char* source_board;
-    char* target_board;
+    char* custom_source_board;
+    char* custom_target_board;
 } worker_args;
 
 int last_synced_generation = 0;
@@ -57,92 +58,39 @@ void* worker(void* argsp)
     worker_args args = *((worker_args*) argsp);
     int generation = 0;
     const int dim = args.dim;
-    // const int LAMBDA = dim - 1;
-    char* source_board = args.source_board;
-    char* target_board = args.target_board;
+    const int outer_dim = dim + 2;
 
-    const int row_pixel_start = args.row_start * dim;
+    // const int LAMBDA = dim - 1;
+    char* custom_source_board = args.custom_source_board;
+    char* custom_target_board = args.custom_target_board;
+
     const int lim = args.row_end;
+
     while (generation < args.num_generations)
     {   
         /*
          * DO WORK
          */
-        for (int row = args.row_start, row_pixel = row_pixel_start; row < lim; row++, row_pixel += dim)
+        for (int row = args.row_start; row < lim; row++)
         {
-            const int row_north_pixel = mod (row - 1, dim) * dim;
-            const int row_south_pixel = mod (row + 1, dim) * dim;
-
+            int row_offset = (row + 1) * outer_dim + 1;
+            int prev_row_offset = row_offset - outer_dim;
+            int next_row_offset = row_offset + outer_dim;
             for (int col = 0; col < dim; col++)
             {
-                const int col_west = mod (col - 1, dim);
-                const int col_east = mod (col + 1, dim);
-
                 const char neighbor_count = 
-                    source_board[row_north_pixel + col_west] + 
-                    source_board[row_north_pixel + col] + 
-                    source_board[row_north_pixel + col_east] + 
-                    source_board[row_pixel + col_west] +
-                    source_board[row_pixel + col_east] + 
-                    source_board[row_south_pixel + col_west] +
-                    source_board[row_south_pixel + col] + 
-                    source_board[row_south_pixel + col_east];
+                    custom_source_board[prev_row_offset + col - 1] + 
+                    custom_source_board[prev_row_offset + col] + 
+                    custom_source_board[prev_row_offset + col + 1] + 
+                    custom_source_board[row_offset + col - 1] +
+                    custom_source_board[row_offset + col + 1] + 
+                    custom_source_board[next_row_offset + col - 1] +
+                    custom_source_board[next_row_offset + col] + 
+                    custom_source_board[next_row_offset + col + 1];
 
-                target_board[col + row_pixel] = alivep(neighbor_count, source_board[col + row_pixel]);
+                custom_target_board[col + row_offset] = alivep(neighbor_count, custom_source_board[col + row_offset]);
             }
         }
-
-        /*
-        int lim = args.row_end;
-        for (int row = args.row_start; row < lim; ++row)
-        {
-            const int inorth = mod(row - 1, dim);
-            const int isouth = mod(row + 1, dim);
-
-            // Check start col
-            int neighbour_count = 
-                source_board[(inorth * dim) + LAMBDA] +
-                source_board[(inorth * dim)] +
-                source_board[(inorth * dim) + 1] +
-                source_board[(row * dim) + LAMBDA] + 
-                source_board[(row * dim) + 1] + 
-                source_board[(isouth * dim) + LAMBDA] + 
-                source_board[(isouth * dim)] + 
-                source_board[(isouth * dim) + 1];
-
-            target_board[row * dim] = alivep(neighbour_count, source_board[row * dim]);
-
-            // Check middle cols
-            for (int col = 1; col < LAMBDA; ++col)
-            {
-                neighbour_count = 
-                    source_board[(inorth * dim) + col - 1] +
-                    source_board[(inorth * dim) + col] +
-                    source_board[(inorth * dim) + col + 1] +
-                    source_board[(row * dim) + col - 1] +
-                    source_board[(row * dim) + col] +
-                    source_board[(row * dim) + col + 1] +
-                    source_board[(isouth * dim) + col - 1] +
-                    source_board[(isouth * dim) + col] +
-                    source_board[(isouth * dim) + col + 1];
-
-                target_board[row * dim + col] = alivep(neighbour_count, source_board[row * dim]);
-            }
-
-            // Check end cols
-            neighbour_count = 
-                source_board[(inorth * dim) + LAMBDA - 1] +
-                source_board[(inorth * dim) + LAMBDA] +
-                source_board[(inorth * dim)] +
-                source_board[(row * dim) + LAMBDA - 1] + 
-                source_board[(row * dim)] + 
-                source_board[(isouth * dim) + LAMBDA - 1] + 
-                source_board[(isouth * dim) + LAMBDA] + 
-                source_board[(isouth * dim)];
-
-            target_board[row * dim + LAMBDA] = alivep(neighbour_count, source_board[row * dim]);
-        }
-        */
 
         /*
          * SYNCHRONIZE
@@ -152,18 +100,19 @@ void* worker(void* argsp)
             if (num_done == NUM_WORKERS)
             {
                 // Signal threads to wake up.
-                pthread_cond_broadcast(&cv);
+                update_custom_borders(custom_target_board, dim);
                 num_done = 0;
                 ++last_synced_generation;
+                pthread_cond_broadcast(&cv);
             } else 
             {
                 pthread_cond_wait(&cv, &num_done_lock);
             }
         UNLOCK(num_done_lock);
 
-        char* temp = target_board;
-        target_board = source_board;
-        source_board = temp;
+        char* temp = custom_target_board;
+        custom_target_board = custom_source_board;
+        custom_source_board = temp;
 
         generation++;
     }
@@ -182,6 +131,13 @@ game_of_life (char* outboard,
 	      const int ncols,
 	      const int gens_max)
 {
+    char* custom_inboard = (char*) malloc(sizeof(char) * (nrows + 2) * (nrows + 2));
+    char* custom_outboard = (char*) malloc(sizeof(char) * (nrows + 2) * (nrows + 2));
+
+    convert_to_custom(inboard, custom_inboard, nrows);
+
+    ASSERT(NUM_WORKERS <= MAX_NUM_WORKERS);
+
     pthread_cond_init(&cv, NULL);
     pthread_t threads[NUM_WORKERS];    
     FOREACH(i, NUM_WORKERS)
@@ -189,8 +145,8 @@ game_of_life (char* outboard,
         worker_args* argsp = (worker_args*) malloc(sizeof(worker_args));
         argsp->num_generations = gens_max;
         argsp->dim = nrows;
-        argsp->source_board = inboard;
-        argsp->target_board = outboard;
+        argsp->custom_source_board = custom_inboard;
+        argsp->custom_target_board = custom_outboard;
         ASSERT(nrows / NUM_WORKERS);
         argsp->row_start = i * (nrows / NUM_WORKERS);
 
@@ -209,6 +165,13 @@ game_of_life (char* outboard,
         pthread_join(threads[i], NULL);
     }
 
-    // TODO
-    return gens_max % 2 ? outboard : inboard;
+    char* end_state_board = gens_max % 2 ? custom_outboard : custom_inboard;
+
+    // Convert the end state board to outboard
+    convert_from_custom(end_state_board, outboard, nrows);
+
+    free(custom_outboard);
+    free(custom_inboard);
+
+    return outboard;
 }
