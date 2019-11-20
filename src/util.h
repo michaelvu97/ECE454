@@ -22,7 +22,7 @@ static inline char
 alivep (char count, char state)
 {
   return (! state && (count == (char) 3)) ||
-    (state && (count >= 2) && (count <= 3));
+    (state && (count == 2 || count ==3));
 }
 
 #endif /* _util_h */
