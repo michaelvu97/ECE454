@@ -19,7 +19,7 @@ endif
 
 GOL_EXE = gol
 GOL_VERIFY_EXE = gol_verify
-GOL_OBJS = gol.o life.o lifeseq.o load.o save.o 
+GOL_OBJS = gol.o life.o lifeseq.o load.o save.o hashlife.o
 GOL_VERIFY_OBJS = gol.verify.o life.o lifeseq.o load.o save.o 
 BITBOARD_EXE = initboard
 BITBOARD_OBJS = bitboard.o random_bit.o
@@ -46,7 +46,9 @@ $(BITBOARD_EXE): $(BITBOARD_OBJS)
 
 lifeseq.o: lifeseq.c life.h util.h
 
-life.o: life.c life.h util.h custom_board.h
+hashlife.o: hashlife.h hashlife.c
+
+life.o: life.c life.h util.h custom_board.h hashlife.h
 
 load.o: load.c load.h
 

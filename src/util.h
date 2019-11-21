@@ -25,4 +25,17 @@ alivep (char count, char state)
     (state && (count == 2 || count ==3));
 }
 
+#define ASSERTIONS_ENABLED
+#ifdef ASSERTIONS_ENABLED
+    #include "stdlib.h"
+    #include "stdio.h"
+    #define ASSERT(x) if (!(x)) \
+    { \
+        printf("Assertion failed: %s, %s:%d\n", #x, __FUNCTION__, __LINE__); \
+        abort(); \
+    }
+#else
+    #define ASSERT(x)
+#endif
+
 #endif /* _util_h */

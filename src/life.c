@@ -8,6 +8,7 @@
 #include "stdlib.h"
 #include "stdio.h"
 #include "custom_board.h"
+#include "hashlife.h"
 
 #define NUM_WORKERS 4
 #define MAX_NUM_WORKERS 32
@@ -124,6 +125,19 @@ void* worker(void* argsp)
     return NULL;
 }
 
+int is_power_sized(int size)
+{
+    while (!(size & 0x1))
+    {
+        size = (size >> 1);
+    }
+
+    // First bit is 1
+    size >>= 1;
+    return size == 0;
+}
+
+
 /*****************************************************************************
  * Game of life implementation
  ****************************************************************************/
@@ -134,6 +148,17 @@ game_of_life (char* outboard,
 	      const int ncols,
 	      const int gens_max)
 {
+    ASSERT(is_power_sized(1024));
+    ASSERT(is_power_sized(128));
+    ASSERT(!is_power_sized(127));
+    ASSERT(!is_power_sized(129));
+    ASSERT(!is_power_sized(1024 + 1));
+
+    if (is_power_sized(nrows))
+    {
+        return hashlife(outboard, inboard, nrows, gens_max);
+    }
+
     char* custom_inboard = (char*) malloc(sizeof(char) * (nrows + 2) * (nrows + 2));
     char* custom_outboard = (char*) malloc(sizeof(char) * (nrows + 2) * (nrows + 2));
 
