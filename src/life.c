@@ -74,21 +74,24 @@ void* worker(void* argsp)
         for (int row = args.row_start; row < lim; row++)
         {
             int row_offset = (row + 1) * outer_dim + 1;
-            int prev_row_offset = row_offset - outer_dim;
-            int next_row_offset = row_offset + outer_dim;
+
+            char* row_start = custom_source_board + row_offset;
+            char* prev_row_start = row_start - outer_dim;
+            char* next_row_start = row_start + outer_dim;
+
             for (int col = 0; col < dim; col++)
             {
                 const char neighbor_count = 
-                    custom_source_board[prev_row_offset + col - 1] + 
-                    custom_source_board[prev_row_offset + col    ] + 
-                    custom_source_board[prev_row_offset + col + 1] + 
-                    custom_source_board[row_offset      + col - 1] +
-                    custom_source_board[row_offset      + col + 1] + 
-                    custom_source_board[next_row_offset + col - 1] +
-                    custom_source_board[next_row_offset + col    ] + 
-                    custom_source_board[next_row_offset + col + 1];
+                    prev_row_start[col - 1] +
+                    prev_row_start[col    ] +
+                    prev_row_start[col + 1] +
+                    row_start     [col - 1] +
+                    row_start     [col + 1] +
+                    next_row_start[col - 1] +
+                    next_row_start[col    ] +
+                    next_row_start[col + 1];
 
-                custom_target_board[col + row_offset] = alivep(neighbor_count, custom_source_board[col + row_offset]);
+                custom_target_board[row_offset + col] = alivep(neighbor_count, row_start[col]);
             }
         }
 
