@@ -80,12 +80,12 @@ void* worker(void* argsp)
             {
                 const char neighbor_count = 
                     custom_source_board[prev_row_offset + col - 1] + 
-                    custom_source_board[prev_row_offset + col] + 
+                    custom_source_board[prev_row_offset + col    ] + 
                     custom_source_board[prev_row_offset + col + 1] + 
-                    custom_source_board[row_offset + col - 1] +
-                    custom_source_board[row_offset + col + 1] + 
+                    custom_source_board[row_offset      + col - 1] +
+                    custom_source_board[row_offset      + col + 1] + 
                     custom_source_board[next_row_offset + col - 1] +
-                    custom_source_board[next_row_offset + col] + 
+                    custom_source_board[next_row_offset + col    ] + 
                     custom_source_board[next_row_offset + col + 1];
 
                 custom_target_board[col + row_offset] = alivep(neighbor_count, custom_source_board[col + row_offset]);
