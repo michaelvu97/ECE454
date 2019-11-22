@@ -146,10 +146,61 @@ Node* centered_vertical(Node* n, Node* s)
 
 Node* next_generation(Node* node)
 {
-    ASSERT(node->level > 1);
+    ASSERT(node->level >= 2);
     if (node->level == 2)
     {
-        TODO("node base case");
+        /*
+         * The current node is a 4x4, we have to compute the inside board (2x2)
+         * manually.
+         * TODO memoization?
+         * The performance here can also be improved.
+         */
+        char nw_pop = 
+            node->nw->nw->alive + 
+            node->nw->ne->alive + 
+            node->nw->sw->alive +
+            node->ne->nw->alive +
+            node->ne->sw->alive +
+            node->sw->nw->alive +
+            node->sw->ne->alive +
+            node->se->nw->alive;
+
+        char ne_pop =
+            node->nw->ne->alive +
+            node->nw->se->alive +
+            node->ne->nw->alive +
+            node->ne->ne->alive +
+            node->ne->se->alive +
+            node->sw->ne->alive +
+            node->se->nw->alive +
+            node->se->ne->alive;
+
+        char se_pop = 
+            node->nw->se->alive +
+            node->nw->sw->alive +
+            node->ne->sw->alive +
+            node->sw->nw->alive +
+            node->sw->sw->alive +
+            node->sw->se->alive +
+            node->se->nw->alive +
+            node->se->sw->alive;
+
+        char sw_pop =
+            node->nw->se->alive +
+            node->ne->sw->alive +
+            node->ne->se->alive +
+            node->sw->ne->alive +
+            node->sw->se->alive +
+            node->se->ne->alive +
+            node->se->sw->alive +
+            node->se->se->alive;
+
+        return NODE(
+            alivep(nw_pop, node->nw->se->alive) ? single_alive : single_dead,
+            alivep(ne_pop, node->ne->sw->alive) ? single_alive : single_dead,
+            alivep(sw_pop, node->sw->ne->alive) ? single_alive : single_dead,
+            alivep(se_pop, node->se->nw->alive) ? single_alive : single_dead
+        );
     } else 
     {
         /*
@@ -166,6 +217,12 @@ Node* next_generation(Node* node)
          * 0000 0000
          *
          */
+
+        ASSERT(node->nw->level == node->level - 1);
+        ASSERT(node->ne->level == node->level - 1);
+        ASSERT(node->sw->level == node->level - 1);
+        ASSERT(node->se->level == node->level - 1);
+
         Node* A = centered_subnode(node->nw);
         Node* B = centered_horizontal(node->nw, node->ne);
         Node* C = centered_subnode(node->ne);
@@ -175,6 +232,16 @@ Node* next_generation(Node* node)
         Node* G = centered_subnode(node->sw);
         Node* H = centered_horizontal(node->sw, node->se);
         Node* I = centered_subnode(node->se);
+
+        ASSERT(A->level == node->level - 2);
+        ASSERT(B->level == node->level - 2);
+        ASSERT(C->level == node->level - 2);
+        ASSERT(D->level == node->level - 2);
+        ASSERT(D->level == node->level - 2);
+        ASSERT(F->level == node->level - 2);
+        ASSERT(G->level == node->level - 2);
+        ASSERT(H->level == node->level - 2);
+        ASSERT(I->level == node->level - 2);
 
         return NODE(
             next_generation(NODE(A, B, D, E)),

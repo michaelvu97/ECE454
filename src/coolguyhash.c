@@ -1,6 +1,7 @@
 #include "util.h"
 #include "node.h"
 #include "coolguyhash.h"
+#include "stdlib.h"
 
 struct hash_node {
     Node* val;

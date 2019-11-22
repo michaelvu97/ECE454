@@ -66,8 +66,38 @@ char* hashlife(char* outboard, char* inboard, const int gens_max)
      */
     Node* root = build_board(inboard, 10, 0, 0);
 
+    FOREACH(gen, gens_max)
+    {
+        DEBUG("\ngeneration: %d\n", gen);
+        ASSERT(root->level == 10);
+        /*
+         * Copy the borders so that the world "wraps"
+         * Makes a 2048x2048 world
+         */
+        Node* tileable_root = NODE(
+            root->se,
+            root->sw,
+            root->ne,
+            root->nw
+        );
+
+        Node* curr_root = NODE(
+            tileable_root,
+            tileable_root,
+            tileable_root,
+            tileable_root
+        );
+
+        // Run this generation
+        root = next_generation(curr_root);
+    }
+
     restore_board(root, outboard, 10, 0, 0);
 
-    // TODO
+    /*
+     * TODO free memory
+     */
+
+
     return outboard;
 }

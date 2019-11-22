@@ -13,18 +13,6 @@
 #define NUM_WORKERS 4
 #define MAX_NUM_WORKERS 32
 
-#define FOREACH(i, lim) for (unsigned i = 0; i < lim; ++i)
-
-#define ASSERTIONS_ENABLED
-#ifdef ASSERTIONS_ENABLED
-    #define ASSERT(x) if (!(x)) \
-    { \
-        printf("Assertion failed: %s, %s:%d\n", #x, __FUNCTION__, __LINE__); \
-        abort(); \
-    }
-#else
-    #define ASSERT(x)
-#endif
 
 /*****************************************************************************
  * Helper function definitions

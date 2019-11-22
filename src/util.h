@@ -25,7 +25,9 @@ alivep (char count, char state)
     (state && (count == 2 || count ==3));
 }
 
-#define ASSERTIONS_ENABLED
+#define FOREACH(i, lim) for (unsigned i = 0; i < lim; ++i)
+
+// #define ASSERTIONS_ENABLED
 #ifdef ASSERTIONS_ENABLED
     #include "stdlib.h"
     #include "stdio.h"
@@ -36,6 +38,13 @@ alivep (char count, char state)
     }
 #else
     #define ASSERT(x)
+#endif
+
+#define DEBUGGING_ENABLED
+#ifdef DEBUGGING_ENABLED
+    #define DEBUG(...) printf(__VA_ARGS__)
+#else
+    #define DEBUG(...)
 #endif
 
 #define TODO(s) \
