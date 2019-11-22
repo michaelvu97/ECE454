@@ -5,7 +5,7 @@
 #define COOLGUYHASH_H
 
 void hash_init();
-Node* lookup(int level, Node* nw, Node* ne, Node* sw, Node* se);
+Node* lookup_or_insert(int level, Node* nw, Node* ne, Node* sw, Node* se);
 
 extern Node* single_alive;
 extern Node* single_dead;

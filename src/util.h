@@ -42,6 +42,7 @@ alivep (char count, char state)
 
 #define DEBUGGING_ENABLED
 #ifdef DEBUGGING_ENABLED
+    #include "stdio.h"
     #define DEBUG(...) printf(__VA_ARGS__)
 #else
     #define DEBUG(...)

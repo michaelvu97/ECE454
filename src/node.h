@@ -13,6 +13,8 @@ typedef struct node {
     struct node* ne;
     struct node* sw;
     struct node* se;
+
+    struct node* result;
 } Node;
 
 Node* make_node(Node* nw, Node* ne, Node* sw, Node* se);

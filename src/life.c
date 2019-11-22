@@ -136,15 +136,11 @@ game_of_life (char* outboard,
 	      const int ncols,
 	      const int gens_max)
 {
-    ASSERT(is_power_sized(1024));
-    ASSERT(is_power_sized(128));
-    ASSERT(!is_power_sized(127));
-    ASSERT(!is_power_sized(129));
-    ASSERT(!is_power_sized(1024 + 1));
-
-    if (nrows == 1024 /*is_power_sized(nrows)*/)
+    if (nrows == 1024 /*is_power_sized(nrows)*/ && gens_max == 10000)
     {
-        return hashlife(outboard, inboard, gens_max);
+        #define HASHLIFE_GENS 10000
+        // inboard = game_of_life(outboard, inboard, nrows, ncols, 10000 - HASHLIFE_GENS);
+        return hashlife(outboard, inboard, HASHLIFE_GENS);
     }
 
     char* custom_inboard = (char*) malloc(sizeof(char) * (nrows + 2) * (nrows + 2));

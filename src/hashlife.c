@@ -88,6 +88,11 @@ char* hashlife(char* outboard, char* inboard, const int gens_max)
             tileable_root
         );
 
+        if (curr_root->result)
+            DEBUG("ROOT IS CACHED\n");
+        else
+            DEBUG("ROOT IS NOT CACHED\n");
+
         // Run this generation
         root = next_generation(curr_root);
     }
