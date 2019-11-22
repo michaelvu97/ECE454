@@ -38,4 +38,8 @@ alivep (char count, char state)
     #define ASSERT(x)
 #endif
 
+#define TODO(s) \
+    printf(s); \
+    ASSERT(0)
+
 #endif /* _util_h */

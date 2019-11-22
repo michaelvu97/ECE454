@@ -1,167 +1,73 @@
 #include "hashlife.h"
+#include "stdlib.h"
 #include "util.h"
+#include "coolguyhash.h"
+#include "node.h"
+
+#define DIM 1024
 
 /*
  * Implementation of Gosper's Hashlife algorithm (1984).
  */
 
-#define TODO(s) \
-    printf(s); \
-    ASSERT(0)
-
-#define NODE(a,b,c,d) make_node(a,b,c,d)
-
-typedef struct node {
-    int level;
-    struct node* nw;
-    struct node* ne;
-    struct node* sw;
-    struct node* se;
-} Node;
-
-static Node* make_node(Node* nw, Node* ne, Node* sw, Node* se)
+Node* build_board(char* board, int depth, int upper_x, int upper_y)
 {
-    TODO("make_node");
-}
-
-static Node* centered_subnode(Node* parent)
-{
-    /*
-     * Returns the centered subnode.
-     *
-     * 0000
-     * 0XX0
-     * 0XX0
-     * 0000
-     *
-     */
-    
-    ASSERT(parent);
-    ASSERT(parent->level >= 2);
-
-    return NODE(
-        parent->nw->se,
-        parent->ne->sw,
-        parent->sw->ne,
-        parent->se->nw
-    );
-}
-
-static Node* centered_sub_sub_node(Node* parent)
-{
-    /*
-     * 0000 0000
-     * 0000 0000
-     * 0000 0000
-     * 000X X000
-     *
-     * 000X X000
-     * 0000 0000
-     * 0000 0000
-     * 0000 0000
-     */
-
-    ASSERT(parent);
-    ASSERT(parent->level >= 3);
-
-    return NODE(
-        parent->nw->se->se,
-        parent->ne->sw->sw,
-        parent->sw->ne->ne,
-        parent->se->nw->nw
-    );
-}
-
-static Node* centered_horizontal(Node* w, Node* e)
-{
-    /*
-     * West East
-     * 0000 0000
-     * 000X X000
-     * 000X X000
-     * 0000 0000
-     */
-    ASSERT(w);
-    ASSERT(e);
-    ASSERT(w->level >= 2);
-    ASSERT(e->level == w->level);
-
-    return NODE(
-        w->ne->se,
-        e->nw->sw,
-        w->se->ne,
-        e->sw->nw
-    );
-}
-
-static Node* centered_vertical(Node* n, Node* s)
-{
-    /*
-     * 0000
-     * 0000
-     * 0000
-     * 0XX0 ^^North^^
-
-     * 0XX0 vvSouthvv
-     * 0000
-     * 0000
-     * 0000 
-     */
-    ASSERT(n);
-    ASSERT(s);
-    ASSERT(n->level >= 2);
-    ASSERT(n->level == s->level);
-
-    return NODE(
-        n->sw->se,
-        n->se->sw,
-        s->nw->ne,
-        s->ne->nw
-    );
-}
-
-Node* next_generation(Node* node)
-{
-    ASSERT(node->level > 1);
-    if (node->level == 2)
+    if (depth == 1)
     {
-        TODO("node base case");
-    } else 
-    {
-        /*
-         * Layout:
-         *
-         * 0000 0000
-         * 0AAB BCC0
-         * 0AAB BCC0
-         * 0DDE EFF0
-         *
-         * 0DDE EFF0
-         * 0GGH HII0
-         * 0GGH HII0
-         * 0000 0000
-         *
-         */
-        Node* A = centered_subnode(node->nw);
-        Node* B = centered_horizontal(node->nw, node->ne);
-        Node* C = centered_subnode(node->ne);
-        Node* D = centered_vertical(node->nw, node->sw);
-        Node* E = centered_sub_sub_node(node);
-        Node* F = centered_vertical(node->ne, node->se);
-        Node* G = centered_subnode(node->sw);
-        Node* H = centered_horizontal(node->sw, node->se);
-        Node* I = centered_subnode(node->se);
-
         return NODE(
-            next_generation(NODE(A, B, D, E)),
-            next_generation(NODE(B, C, E, F)),
-            next_generation(NODE(D, E, G, H)),
-            next_generation(NODE(E, F, H, I))
+            board[upper_y * DIM + upper_x] ? single_alive : single_dead,
+            board[upper_y * DIM + upper_x + 1] ? single_alive : single_dead,
+            board[(upper_y + 1) * DIM + upper_x] ? single_alive : single_dead,
+            board[(upper_y + 1) * DIM + upper_x + 1] ? single_alive : single_dead
         );
     }
+
+    int width_at_this_depth = 1 << (depth - 1);
+    return NODE(
+        build_board(board, depth - 1, upper_x, upper_y),
+        build_board(board, depth - 1, upper_x + width_at_this_depth, upper_y),
+        build_board(board, depth - 1, upper_x, upper_y + width_at_this_depth),
+        build_board(board, depth - 1, upper_x + width_at_this_depth, upper_y + width_at_this_depth)
+    );
 }
 
-char* hashlife(char* outboard, char* inboard, const int dim, const int gens_max)
+void restore_board(Node* root, char* board, int depth, int upper_x, int upper_y)
 {
-    return 0;
+    ASSERT(root);
+    ASSERT(root->level == depth);
+    if (depth == 1)
+    {
+        ASSERT(root->nw);
+        ASSERT(root->nw->alive == 1 || root->nw->alive == 0);
+        ASSERT(root->ne->alive == 1 || root->ne->alive == 0);
+        ASSERT(root->sw->alive == 1 || root->sw->alive == 0);
+        ASSERT(root->se->alive == 1 || root->se->alive == 0);
+
+        board[DIM * upper_y + upper_x] = root->nw->alive;
+        board[DIM * upper_y + upper_x + 1] = root->ne->alive;
+        board[DIM * (upper_y + 1) + upper_x] = root->sw->alive;
+        board[DIM * (upper_y + 1) + upper_x + 1] = root->se->alive;
+        return;
+    }
+
+    int half_width_at_this_depth = 1 << (depth - 1);
+
+    restore_board(root->nw, board, depth - 1, upper_x, upper_y);
+    restore_board(root->ne, board, depth - 1, upper_x + half_width_at_this_depth, upper_y);
+    restore_board(root->sw, board, depth - 1, upper_x, upper_y + half_width_at_this_depth);
+    restore_board(root->se, board, depth - 1, upper_x + half_width_at_this_depth, upper_y + half_width_at_this_depth);
+}
+
+char* hashlife(char* outboard, char* inboard, const int gens_max)
+{
+    hash_init();
+    /*
+     * Build our board
+     */
+    Node* root = build_board(inboard, 10, 0, 0);
+
+    restore_board(root, outboard, 10, 0, 0);
+
+    // TODO
+    return outboard;
 }

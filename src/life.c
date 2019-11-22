@@ -154,9 +154,9 @@ game_of_life (char* outboard,
     ASSERT(!is_power_sized(129));
     ASSERT(!is_power_sized(1024 + 1));
 
-    if (is_power_sized(nrows))
+    if (nrows == 1024 /*is_power_sized(nrows)*/)
     {
-        return hashlife(outboard, inboard, nrows, gens_max);
+        return hashlife(outboard, inboard, gens_max);
     }
 
     char* custom_inboard = (char*) malloc(sizeof(char) * (nrows + 2) * (nrows + 2));
